@@ -45,11 +45,13 @@ const GOOGLE_OPEN_BASE = "https://generativelanguage.googleapis.com/v1beta/opena
 const TEXT_MODEL_FALLBACKS = ["glm-4.6", "glm-4.7-flash", "glm-4.5"];
 const VISION_MODEL_FALLBACKS = ["glm-4.6v", "glm-4.5v", "glm-4.6v-flash"];
 // Google: gemini-2.5-flash deixou de ser liberado para contas novas (2026) e o
-// Google recomenda gemini-3.8-flash / gemini-3.5-flash-lite. A cadeia cobre os
-// dois públicos: contas novas (3.8/3.5) e antigas (2.5/alias).
+// Google recomenda gemini-3.8-flash / gemini-3.5-flash-lite. Em produção com
+// chave "AQ." real (2026-11): 3.5-flash-lite responde rápido; 3.8-flash ficou
+// PENDENTE (>55s sem resposta, bug/queue para contas novas); 2.5-flash → 404.
+// Por isso a cadeia começa em gemini-3.5-flash-lite.
 const GOOGLE_TEXT_MODEL_FALLBACKS = [
-  "gemini-3.8-flash",
   "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
   "gemini-2.5-flash",
   "gemini-flash-latest",
 ];
@@ -275,7 +277,7 @@ class ZaiClient {
         return await this.post(pathname, this.prepare(body, candidates[i]), remainingMs());
       } catch (err) {
         lastError = err;
-        if (i < maxAttempts - 1 && isModelUnavailable(err)) continue;
+        if (i < maxAttempts - 1 && (isModelUnavailable(err) || isTimeoutError(err))) continue;
         throw err;
       }
     }
@@ -291,6 +293,11 @@ class ZaiClient {
   async createVision(body: ChatBody): Promise<ZaiChatResponse> {
     return this.runWithFallback("vision", body);
   }
+}
+
+/** Timeout de chamada (sem resposta) — avança a cadeia quando houver próximo modelo. */
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("demorou demais");
 }
 
 /** Detecta erro de modelo indisponível/sem permissão para tentar o próximo da cadeia. */
