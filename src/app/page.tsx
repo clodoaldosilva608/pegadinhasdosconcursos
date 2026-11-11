@@ -11,6 +11,7 @@ import { AnalyzingView } from "@/components/detector/AnalyzingView";
 import { ResultView } from "@/components/detector/ResultView";
 import { DistractorsTab } from "@/components/detector/DistractorsTab";
 import { VocabularyTab } from "@/components/detector/VocabularyTab";
+import { getUserAi } from "@/lib/userAiStore";
 import type {
   AccountInfo,
   AnalysisResult,
@@ -61,16 +62,25 @@ export default function DetectorPage() {
     }
     setExtractLoading(true);
     try {
+      const userAi = getUserAi();
       const res = await fetch("/api/extract", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(userAi
+            ? { "x-user-ai-key": userAi.key, "x-user-ai-provider": userAi.provider }
+            : {}),
+        },
         body: JSON.stringify({ images, notes }),
       });
       const data = await res.json();
       if (!res.ok || !data?.question) {
+        const notConfigured = typeof data?.error === "string" && data.error.includes("IA não configurada");
         toast({
-          title: "Não consegui ler a questão",
-          description: data?.error ?? "Tente um print mais nítido ou digite o enunciado.",
+          title: notConfigured ? "Conecte sua chave de IA" : "Não consegui ler a questão",
+          description: notConfigured
+            ? "No topo da página inicial, use a seção \"Sua chave de IA\": crie uma chave grátis no AI Studio e cole lá."
+            : (data?.error ?? "Tente um print mais nítido ou digite o enunciado."),
         });
         return;
       }
@@ -92,9 +102,15 @@ export default function DetectorPage() {
       setView("analyzing");
       window.scrollTo({ top: 0, behavior: "smooth" });
       try {
+        const userAi = getUserAi();
         const res = await fetch("/api/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(userAi
+              ? { "x-user-ai-key": userAi.key, "x-user-ai-provider": userAi.provider }
+              : {}),
+          },
           body: JSON.stringify({
             questionText: question.questionText,
             options: question.options,
@@ -106,9 +122,12 @@ export default function DetectorPage() {
         });
         const data = await res.json();
         if (!res.ok || !data?.result) {
+          const notConfigured = typeof data?.error === "string" && data.error.includes("IA não configurada");
           toast({
-            title: "Falha na análise",
-            description: data?.error ?? "Tente novamente em instantes.",
+            title: notConfigured ? "Conecte sua chave de IA" : "Falha na análise",
+            description: notConfigured
+              ? "Volte à página inicial e conecte uma chave grátis na seção \"Sua chave de IA\"."
+              : (data?.error ?? "Tente novamente em instantes."),
           });
           setView("confirm");
           return;

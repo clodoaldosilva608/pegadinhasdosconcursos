@@ -2,6 +2,7 @@
 
 import { Camera, ListChecks, Lightbulb, Sparkles, Loader2 } from "lucide-react";
 import { UploadZone } from "./UploadZone";
+import { AiKeySection } from "./AiKeySection";
 import type { AccountInfo } from "@/lib/types";
 
 interface HomeViewProps {
@@ -53,6 +54,9 @@ export function HomeView({
           </p>
         </div>
       </section>
+
+      {/* Chave de IA do usuário (BYOK) */}
+      <AiKeySection />
 
       {/* CTA verde */}
       <section

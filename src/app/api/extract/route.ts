@@ -29,7 +29,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const zai = await getZai();
+    // BYOK: se o usuário conectou a própria chave, ela é usada nesta chamada.
+    const userKey = req.headers.get("x-user-ai-key")?.trim().slice(0, 300);
+    const override = userKey
+      ? {
+          provider: req.headers.get("x-user-ai-provider") === "google" ? ("google" as const) : ("zai" as const),
+          apiKey: userKey,
+        }
+      : undefined;
+
+    const zai = await getZai(override);
     const messages = buildExtractMessages(images, notes);
 
     const response = await zai.chat.completions.createVision({
