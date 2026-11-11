@@ -42,9 +42,9 @@ const PROVIDERS: Record<
   zai: {
     label: "Z.ai (GLM)",
     short: "Z.ai",
-    link: "https://z.ai/model-api",
-    linkLabel: "Criar chave na Z.ai",
-    hint: "A chave da plataforma aberta da Z.ai",
+    link: "https://z.ai/manage-apikey/apikey-list",
+    linkLabel: "Criar chave na plataforma Z.ai",
+    hint: 'Na página "API Keys", clique em Create API Key e copie a chave completa',
   },
 };
 

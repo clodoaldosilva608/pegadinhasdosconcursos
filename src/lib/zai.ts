@@ -29,8 +29,11 @@ export interface AiOverride {
 
 const DEFAULT_OPEN_BASE = "https://api.z.ai/api/paas/v4";
 const GOOGLE_OPEN_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
-const DEFAULT_MODEL = "glm-4.6";
-const DEFAULT_VISION_MODEL = "glm-4.5v";
+// Z.ai: cadeia de modelos — tenta o preferencial e cai para o próximo só quando a
+// conta do usuário não tem o modelo disponível. GLM-5.3 exige thinking enabled,
+// portanto NÃO entra na cadeia (o app usa thinking disabled).
+const TEXT_MODEL_FALLBACKS = ["glm-4.6", "glm-4.7-flash", "glm-4.5"];
+const VISION_MODEL_FALLBACKS = ["glm-4.6v", "glm-4.5v", "glm-4.6v-flash"];
 const GOOGLE_MODEL = "gemini-2.5-flash";
 const GOOGLE_VISION_MODEL = "gemini-2.5-flash";
 
@@ -181,37 +184,75 @@ class ZaiClient {
     return (await response.json()) as ZaiChatResponse;
   }
 
-  private prepare(body: ChatBody, kind: "chat" | "vision"): ChatBody {
+  private prepare(body: ChatBody, kind: "chat" | "vision", model?: string): ChatBody {
     const payload: ChatBody = { ...body };
     // A API pública do Google não entende o campo `thinking` do z.ai.
     if (this.res.provider === "google") {
       delete payload.thinking;
+      if (this.res.mode !== "internal" && !payload.model) {
+        payload.model = kind === "vision" ? GOOGLE_VISION_MODEL : GOOGLE_MODEL;
+      }
     } else if (!payload.thinking) {
       payload.thinking = { type: "disabled" };
     }
-    if (this.res.mode !== "internal" && !payload.model) {
-      if (this.res.provider === "google") {
-        payload.model = kind === "vision" ? GOOGLE_VISION_MODEL : GOOGLE_MODEL;
-      } else {
-        payload.model =
-          kind === "vision"
-            ? envTrim("ZAI_MODEL_VISION") ?? DEFAULT_VISION_MODEL
-            : envTrim("ZAI_MODEL") ?? DEFAULT_MODEL;
+    if (model) payload.model = model;
+    return payload;
+  }
+
+  /** Cadeia de modelos a tentar (modo open; gateway interno e Google escolhem sozinhos). */
+  private modelCandidates(kind: "chat" | "vision"): string[] {
+    const custom = kind === "vision" ? envTrim("ZAI_MODEL_VISION") : envTrim("ZAI_MODEL");
+    return custom ? [custom] : kind === "vision" ? VISION_MODEL_FALLBACKS : TEXT_MODEL_FALLBACKS;
+  }
+
+  private async runWithFallback(kind: "chat" | "vision", body: ChatBody): Promise<ZaiChatResponse> {
+    const pathname =
+      kind === "vision" && this.res.mode === "internal" ? "/chat/completions/vision" : "/chat/completions";
+    if (this.res.mode === "internal" || this.res.provider === "google") {
+      return this.post(pathname, this.prepare(body, kind));
+    }
+    const models = this.modelCandidates(kind);
+    let lastError: unknown;
+    for (let i = 0; i < models.length; i++) {
+      try {
+        return await this.post(pathname, this.prepare(body, kind, models[i]));
+      } catch (err) {
+        lastError = err;
+        if (i < models.length - 1 && isModelUnavailable(err)) continue;
+        throw err;
       }
     }
-    return payload;
+    throw lastError instanceof Error ? lastError : new Error("Falha na chamada de IA.");
   }
 
   /** Conclusão de chat textual (análise pedagógica). */
   async create(body: ChatBody): Promise<ZaiChatResponse> {
-    return this.post("/chat/completions", this.prepare(body, "chat"));
+    return this.runWithFallback("chat", body);
   }
 
   /** Conclusão multimodal (OCR/extração de questão). */
   async createVision(body: ChatBody): Promise<ZaiChatResponse> {
-    const pathname = this.res.mode === "internal" ? "/chat/completions/vision" : "/chat/completions";
-    return this.post(pathname, this.prepare(body, "vision"));
+    return this.runWithFallback("vision", body);
   }
+}
+
+/** Detecta erro de modelo indisponível/sem permissão para tentar o próximo da cadeia. */
+function isModelUnavailable(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  if (!msg.includes("model") && !msg.includes("modelo")) return false;
+  return (
+    msg.includes("not exist") ||
+    msg.includes("does not exist") ||
+    msg.includes("não existe") ||
+    msg.includes("nao existe") ||
+    msg.includes("not found") ||
+    msg.includes("invalid model") ||
+    msg.includes("deprecated") ||
+    msg.includes("unavailable") ||
+    msg.includes("no permission to access") ||
+    msg.includes("1211") // código da plataforma para modelo indisponível
+  );
 }
 
 export async function getZai(override?: AiOverride): Promise<ZaiClient> {
