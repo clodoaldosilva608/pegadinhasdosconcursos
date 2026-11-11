@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id            String   @id @default("internal")
+  planLabel     String   @default("Conta interna")
+  analysesLeft  Int      @default(988)
+  noDeadline    Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+}
+
+model Analysis {
+  id            String   @id @default(cuid())
+  banca         String
+  organization  String   @default("")
+  questionText  String
+  correctLetter String
+  userMarked    String?
+  optionsJson   String
+  resultJson    String
+  createdAt     DateTime @default(now())
+}

@@ -1,0 +1,62 @@
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+export const db =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "production" ? [] : ["query"],
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+
+// Bootstrap do schema (serverless-safe).
+// Na Vercel o banco vive em /tmp e nasce vazio a cada instância fria —
+// garantimos as tabelas + a linha seed da conta antes da primeira consulta.
+// No sandbox/local as tabelas já existem (prisma db push) e isso é no-op.
+async function createSchema(): Promise<void> {
+  await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "Account" (
+      "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'internal',
+      "planLabel" TEXT NOT NULL DEFAULT 'Conta interna',
+      "analysesLeft" INTEGER NOT NULL DEFAULT 988,
+      "noDeadline" BOOLEAN NOT NULL DEFAULT true,
+      "updatedAt" DATETIME NOT NULL
+    )`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "Analysis" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "banca" TEXT NOT NULL,
+      "organization" TEXT NOT NULL DEFAULT '',
+      "questionText" TEXT NOT NULL,
+      "correctLetter" TEXT NOT NULL,
+      "userMarked" TEXT,
+      "optionsJson" TEXT NOT NULL,
+      "resultJson" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`
+  );
+  await db.$executeRawUnsafe(
+    `INSERT OR IGNORE INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
+     VALUES ('internal', 'Conta interna', 988, 1, ?)`,
+    Date.now()
+  );
+}
+
+const globalForSchema = globalThis as unknown as {
+  __dpSchemaReady?: Promise<void>;
+};
+
+export async function dbReady(): Promise<PrismaClient> {
+  if (!globalForSchema.__dpSchemaReady) {
+    globalForSchema.__dpSchemaReady = createSchema().catch((err) => {
+      globalForSchema.__dpSchemaReady = undefined;
+      throw err;
+    });
+  }
+  await globalForSchema.__dpSchemaReady;
+  return db;
+}
