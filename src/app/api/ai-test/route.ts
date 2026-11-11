@@ -18,11 +18,12 @@ export async function POST(req: NextRequest) {
     if (key.length > MAX_KEY_LENGTH) {
       return NextResponse.json({ ok: false, error: "Essa chave parece grande demais. Copie só o valor da chave." });
     }
-    if (provider === "google" && !key.startsWith("AIza")) {
+    // O Google emite chaves em dois formatos: AIza… (antiga) e AQ.Ab8… (nova, desde 2026)
+    if (provider === "google" && !/^(AIza|AQ\.)/.test(key)) {
       return NextResponse.json({
         ok: false,
         error:
-          "Chaves do Google AI Studio começam com \"AIza\". Confira se você copiou a chave completa (botão copiar do AI Studio).",
+          'Chaves do Google AI Studio começam com "AIza" (formato antigo) ou "AQ." (formato novo). Confira se você copiou a chave completa (botão copiar do AI Studio).',
       });
     }
 

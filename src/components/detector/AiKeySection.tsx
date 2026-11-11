@@ -37,7 +37,7 @@ const PROVIDERS: Record<
     short: "Google AI Studio",
     link: "https://aistudio.google.com/apikey",
     linkLabel: "Criar chave grátis no AI Studio",
-    hint: "A chave começa com AIza…",
+    hint: 'Chaves novas começam com "AQ." — copie a chave completa',
   },
   zai: {
     label: "Z.ai (GLM)",
@@ -92,10 +92,11 @@ export function AiKeySection() {
       setResult({ ok: false, message: "Cole a chave para continuar." });
       return;
     }
-    if (provider === "google" && !key.startsWith("AIza")) {
+    if (provider === "google" && !/^(AIza|AQ\.)/.test(key)) {
       setResult({
         ok: false,
-        message: 'Chaves do Google AI Studio começam com "AIza". Confira se copiou a chave completa.',
+        message:
+          'Chaves do Google AI Studio começam com "AIza" (formato antigo) ou "AQ." (formato novo). Confira se copiou a chave completa.',
       });
       return;
     }
@@ -335,7 +336,7 @@ export function AiKeySection() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={provider === "google" ? "AIza…" : "cole aqui a sua chave"}
+              placeholder={provider === "google" ? "AIza… ou AQ.Ab8…" : "cole aqui a sua chave"}
               aria-label="Chave de API"
               autoComplete="off"
               autoCapitalize="off"
