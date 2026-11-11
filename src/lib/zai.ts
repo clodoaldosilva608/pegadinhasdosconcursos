@@ -5,13 +5,15 @@
 //  2. Sandbox/local: arquivo .z-ai-config (cwd, home ou /etc) — gateway interno.
 //  3. Produção: variáveis de ambiente ZAI_API_KEY (+ opcionais).
 //
-// Google (AI Studio): chamamos o ENDPOINT NATIVO do Gemini
-// (/v1beta/models/{model}:generateContent com header x-goog-api-key), e não o
-// OpenAI-compatível. Motivo: as chaves novas do AI Studio (formato "AQ.",
-// emitidas desde 2026) retornam 400 "Multiple authentication credentials
-// received" quando enviadas como Authorization: Bearer no endpoint
-// OpenAI-compatível. O header x-goog-api-key no endpoint nativo funciona
-// tanto com chaves novas (AQ.) quanto antigas (AIza).
+// Google (AI Studio): chamamos o endpoint OpenAI-compatível
+// (/v1beta/openai/chat/completions com Authorization: Bearer). Testado em 2026-11:
+// chaves novas "AQ." SÃO aceitas por Bearer nesse endpoint (o bug de abril/2026
+// "Multiple authentication credentials" foi corrigido pela Google); o header
+// x-goog-api-key sozinho NÃO é aceito lá ("Missing or invalid Authorization
+// header"). O endpoint nativo generateContent foi descartado: para chaves novas
+// ele retorna 404 para todos os modelos (deprecated para Gemini 3).
+// IMPORTANTE: gemini-2.5-flash não é mais liberado para CONTAS NOVAS — a cadeia
+// começa em gemini-3.8-flash (recomendação da própria Google).
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
@@ -36,21 +38,22 @@ export interface AiOverride {
 }
 
 const DEFAULT_OPEN_BASE = "https://api.z.ai/api/paas/v4";
-const GOOGLE_NATIVE_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const GOOGLE_OPEN_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
 // Z.ai: cadeia de modelos — tenta o preferencial e cai para o próximo só quando a
 // conta do usuário não tem o modelo disponível. GLM-5.3 exige thinking enabled,
 // portanto NÃO entra na cadeia (o app usa thinking disabled).
 const TEXT_MODEL_FALLBACKS = ["glm-4.6", "glm-4.7-flash", "glm-4.5"];
 const VISION_MODEL_FALLBACKS = ["glm-4.6v", "glm-4.5v", "glm-4.6v-flash"];
-// Google: contas novas nem sempre têm acesso a todos os modelos antigos, então
-// tentamos em cadeia. O próprio Google recomenda gemini-3.8-flash para usuários
-// novos (gemini-2.5-flash deixou de ser disponibilizado a eles em 2026).
-const GOOGLE_MODEL_FALLBACKS = [
+// Google: gemini-2.5-flash deixou de ser liberado para contas novas (2026) e o
+// Google recomenda gemini-3.8-flash / gemini-3.5-flash-lite. A cadeia cobre os
+// dois públicos: contas novas (3.8/3.5) e antigas (2.5/alias).
+const GOOGLE_TEXT_MODEL_FALLBACKS = [
   "gemini-3.8-flash",
+  "gemini-3.5-flash-lite",
   "gemini-2.5-flash",
   "gemini-flash-latest",
-  "gemini-2.5-flash-latest",
 ];
+const GOOGLE_VISION_MODEL_FALLBACKS = GOOGLE_TEXT_MODEL_FALLBACKS;
 
 function envTrim(name: string): string | undefined {
   const v = process.env[name]?.trim();
@@ -109,7 +112,7 @@ function resolve(override?: AiOverride): Resolved | null {
     const provider = normalizeProvider(override.provider);
     const baseUrl =
       provider === "google"
-        ? (envTrim("GOOGLE_API_BASE") ?? GOOGLE_NATIVE_BASE).replace(/\/+$/, "")
+        ? (envTrim("GOOGLE_API_BASE") ?? GOOGLE_OPEN_BASE).replace(/\/+$/, "")
         : (envTrim("ZAI_API_BASE") ?? DEFAULT_OPEN_BASE).replace(/\/+$/, "");
     return { cfg: { baseUrl, apiKey: override.apiKey }, mode: "open", provider };
   }
@@ -134,79 +137,6 @@ type ChatBody = {
   [key: string]: unknown;
 };
 
-// Resposta do endpoint nativo do Gemini (formato não-OpenAI).
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-  }>;
-  error?: { code?: number; message?: string; status?: string };
-}
-
-interface GeminiPart {
-  text?: string;
-  inlineData?: { mimeType: string; data: string };
-}
-
-interface GeminiPayload {
-  contents: Array<{ role: string; parts: GeminiPart[] }>;
-  systemInstruction?: { parts: GeminiPart[] };
-  generationConfig?: { maxOutputTokens?: number };
-}
-
-function toGeminiParts(content: unknown): GeminiPart[] {
-  if (typeof content === "string") {
-    return content.trim() ? [{ text: content }] : [];
-  }
-  if (!Array.isArray(content)) return [];
-  const parts: GeminiPart[] = [];
-  for (const item of content) {
-    if (!item || typeof item !== "object") continue;
-    const rec = item as { type?: unknown; text?: unknown; image_url?: unknown };
-    if (rec.type === "text" && typeof rec.text === "string" && rec.text.trim()) {
-      parts.push({ text: rec.text });
-      continue;
-    }
-    if (rec.type === "image_url" && rec.image_url && typeof rec.image_url === "object") {
-      const url = (rec.image_url as { url?: unknown }).url;
-      // Data-URL "data:image/jpeg;base64,XXXX" → inlineData nativo do Gemini
-      if (typeof url === "string") {
-        const match = /^data:([^;]+);base64,(.*)$/.exec(url);
-        if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-      }
-    }
-  }
-  return parts;
-}
-
-/** Converte mensagens OpenAI (formato do app) para o payload nativo do Gemini. */
-export function toGeminiPayload(body: ChatBody): GeminiPayload {
-  const systemParts: string[] = [];
-  const contents: Array<{ role: string; parts: GeminiPart[] }> = [];
-  const messages = Array.isArray(body.messages)
-    ? (body.messages as Array<{ role?: unknown; content?: unknown }>)
-    : [];
-  for (const m of messages) {
-    if (!m || typeof m !== "object") continue;
-    if (m.role === "system") {
-      const parts = toGeminiParts(m.content);
-      const text = parts.map((p) => p.text ?? "").join("\n").trim();
-      if (text) systemParts.push(text);
-      continue;
-    }
-    const role = m.role === "assistant" ? "model" : "user";
-    const parts = toGeminiParts(m.content);
-    if (parts.length > 0) contents.push({ role, parts });
-  }
-  const payload: GeminiPayload = { contents };
-  if (systemParts.length > 0) {
-    payload.systemInstruction = { parts: [{ text: systemParts.join("\n\n") }] };
-  }
-  if (typeof body.max_tokens === "number" && body.max_tokens > 0) {
-    payload.generationConfig = { maxOutputTokens: body.max_tokens };
-  }
-  return payload;
-}
-
 class ZaiClient {
   public readonly chat: {
     completions: {
@@ -228,11 +158,15 @@ class ZaiClient {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.res.cfg.apiKey}`,
-      "X-Z-AI-From": "Z",
     };
-    if (this.res.cfg.chatId) headers["X-Chat-Id"] = this.res.cfg.chatId;
-    if (this.res.cfg.userId) headers["X-User-Id"] = this.res.cfg.userId;
-    if (this.res.cfg.token) headers["X-Token"] = this.res.cfg.token;
+    // Cabeçalhos específicos do gateway/plataforma Z.ai (inofensivos, mas só
+    // fazem sentido lá); o Google recebe o mínimo: Authorization + Content-Type.
+    if (this.res.provider !== "google") {
+      headers["X-Z-AI-From"] = "Z";
+      if (this.res.cfg.chatId) headers["X-Chat-Id"] = this.res.cfg.chatId;
+      if (this.res.cfg.userId) headers["X-User-Id"] = this.res.cfg.userId;
+      if (this.res.cfg.token) headers["X-Token"] = this.res.cfg.token;
+    }
     return headers;
   }
 
@@ -244,100 +178,6 @@ class ZaiClient {
         method: "POST",
         headers: this.headers(),
         body: JSON.stringify(body),
-      });
-    } catch (err) {
-      throw new Error(
-        `Não consegui falar com a API de IA: ${err instanceof Error ? err.message : "erro de rede"}`
-      );
-    }
-    if (!response.ok) {
-      const detail = (await response.text().catch(() => "")).slice(0, 300);
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(
-          `A IA recusou a chave (${response.status}). Confira se a chave está correta e ativa. Detalhe: ${detail}`
-        );
-      }
-      if (response.status === 429) {
-        throw new Error(
-          "A IA atingiu o limite de uso desta chave agora (429). Aguarde alguns segundos e tente de novo."
-        );
-      }
-      if (detail.includes("valid API key") || detail.includes("API key not valid")) {
-        throw new Error(
-          "O Google não reconheceu essa chave. Confira se copiou a chave completa (começa com \"AIza\") e se ela está ativa no AI Studio."
-        );
-      }
-      throw new Error(`API de IA falhou (${response.status}): ${detail}`);
-    }
-    return (await response.json()) as ZaiChatResponse;
-  }
-
-  private prepare(body: ChatBody, model?: string): ChatBody {
-    const payload: ChatBody = { ...body };
-    if (!payload.thinking) {
-      payload.thinking = { type: "disabled" };
-    }
-    if (model) payload.model = model;
-    return payload;
-  }
-
-  /** Cadeia de modelos a tentar (modo open; gateway interno escolhe sozinho). */
-  private modelCandidates(kind: "chat" | "vision"): string[] {
-    const custom = kind === "vision" ? envTrim("ZAI_MODEL_VISION") : envTrim("ZAI_MODEL");
-    return custom ? [custom] : kind === "vision" ? VISION_MODEL_FALLBACKS : TEXT_MODEL_FALLBACKS;
-  }
-
-  private async runWithFallback(kind: "chat" | "vision", body: ChatBody): Promise<ZaiChatResponse> {
-    // Google AI Studio: endpoint NATIVO do Gemini (chaves AQ. e AIza via x-goog-api-key).
-    if (this.res.provider === "google") return this.runGoogle(kind, body);
-    const pathname =
-      kind === "vision" && this.res.mode === "internal" ? "/chat/completions/vision" : "/chat/completions";
-    if (this.res.mode === "internal") {
-      return this.post(pathname, this.prepare(body));
-    }
-    const models = this.modelCandidates(kind);
-    let lastError: unknown;
-    for (let i = 0; i < models.length; i++) {
-      try {
-        return await this.post(pathname, this.prepare(body, models[i]));
-      } catch (err) {
-        lastError = err;
-        if (i < models.length - 1 && isModelUnavailable(err)) continue;
-        throw err;
-      }
-    }
-    throw lastError instanceof Error ? lastError : new Error("Falha na chamada de IA.");
-  }
-
-  /** Cadeia de modelos Google (contas novas nem sempre têm os modelos antigos). */
-  private async runGoogle(kind: "chat" | "vision", body: ChatBody): Promise<ZaiChatResponse> {
-    const custom = kind === "vision" ? envTrim("ZAI_MODEL_VISION") : envTrim("ZAI_MODEL");
-    const models = custom ? [custom] : GOOGLE_MODEL_FALLBACKS;
-    let lastError: unknown;
-    for (let i = 0; i < models.length; i++) {
-      try {
-        return await this.postGemini(models[i], body);
-      } catch (err) {
-        lastError = err;
-        if (i < models.length - 1 && isModelUnavailable(err)) continue;
-        throw err;
-      }
-    }
-    throw lastError instanceof Error ? lastError : new Error("Falha na chamada de IA.");
-  }
-
-  /** Chamada ao endpoint nativo do Gemini (aceita chaves novas "AQ." e antigas "AIza"). */
-  private async postGemini(model: string, body: ChatBody): Promise<ZaiChatResponse> {
-    const url = `${this.res.cfg.baseUrl}/models/${model}:generateContent`;
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": this.res.cfg.apiKey,
-        },
-        body: JSON.stringify(toGeminiPayload(body)),
       });
     } catch (err) {
       throw new Error(
@@ -371,22 +211,51 @@ class ZaiClient {
           'O Google não reconheceu essa chave. Confira se copiou a chave completa (começa com "AIza" ou "AQ.") e se ela está ativa no AI Studio.'
         );
       }
-      if (response.status === 404 || detail.includes("is not found")) {
-        throw new Error(
-          "A sua conta Google ainda não tem acesso aos modelos usados pelo app (a Google está migrando os formatos de chave). Tente novamente em alguns minutos ou use a opção Z.ai."
-        );
-      }
       throw new Error(`API de IA falhou (${response.status}): ${detail}`);
     }
-    const data = (await response.json()) as GeminiResponse;
-    const content = (data.candidates?.[0]?.content?.parts ?? [])
-      .map((p) => p.text ?? "")
-      .join("")
-      .trim();
-    if (!content) {
-      throw new Error("A IA do Google respondeu vazia. Tente novamente.");
+    return (await response.json()) as ZaiChatResponse;
+  }
+
+  private prepare(body: ChatBody, model?: string): ChatBody {
+    const payload: ChatBody = { ...body };
+    if (this.res.provider === "google") {
+      // A API pública do Google não entende o campo `thinking` do z.ai.
+      delete payload.thinking;
+    } else if (!payload.thinking) {
+      payload.thinking = { type: "disabled" };
     }
-    return { choices: [{ message: { content } }] };
+    if (model) payload.model = model;
+    return payload;
+  }
+
+  /** Cadeia de modelos a tentar (modo open; gateway interno escolhe sozinho). */
+  private modelCandidates(kind: "chat" | "vision"): string[] {
+    const custom = kind === "vision" ? envTrim("ZAI_MODEL_VISION") : envTrim("ZAI_MODEL");
+    if (custom) return [custom];
+    if (this.res.provider === "google") {
+      return kind === "vision" ? GOOGLE_VISION_MODEL_FALLBACKS : GOOGLE_TEXT_MODEL_FALLBACKS;
+    }
+    return kind === "vision" ? VISION_MODEL_FALLBACKS : TEXT_MODEL_FALLBACKS;
+  }
+
+  private async runWithFallback(kind: "chat" | "vision", body: ChatBody): Promise<ZaiChatResponse> {
+    const pathname =
+      kind === "vision" && this.res.mode === "internal" ? "/chat/completions/vision" : "/chat/completions";
+    if (this.res.mode === "internal") {
+      return this.post(pathname, this.prepare(body));
+    }
+    const models = this.modelCandidates(kind);
+    let lastError: unknown;
+    for (let i = 0; i < models.length; i++) {
+      try {
+        return await this.post(pathname, this.prepare(body, models[i]));
+      } catch (err) {
+        lastError = err;
+        if (i < models.length - 1 && isModelUnavailable(err)) continue;
+        throw err;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("Falha na chamada de IA.");
   }
 
   /** Conclusão de chat textual (análise pedagógica). */
