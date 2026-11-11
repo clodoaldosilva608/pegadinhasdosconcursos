@@ -28,10 +28,16 @@ export async function POST(req: NextRequest) {
     }
 
     const zai = await getZai({ provider, apiKey: key });
+    // Probe de UM modelo com resposta rápida: basta provar que a chave autentica.
+    // "model" opcional permite diagnosticar um modelo específico; por padrão usa
+    // o primeiro da cadeia (gemini-3.8-flash para Google).
+    const model = typeof body?.model === "string" && body.model.trim() ? body.model.trim() : undefined;
     const response = await zai.chat.completions.create({
       messages: [{ role: "user", content: "Responda apenas com a palavra: ok" }],
       max_tokens: 16,
       thinking: { type: "disabled" },
+      ...(model ? { model } : {}),
+      dp_maxAttempts: 1,
     });
     const sample = (response.choices?.[0]?.message?.content ?? "").trim().slice(0, 40);
     return NextResponse.json({ ok: true, provider, sample: sample || "ok" });

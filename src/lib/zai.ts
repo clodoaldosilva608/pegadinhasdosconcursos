@@ -134,8 +134,15 @@ type ChatBody = {
   model?: string;
   stream?: boolean;
   max_tokens?: number;
+  // Interno: limita quantos modelos da cadeia tentar (usado pelo /api/ai-test
+  // para caber no limite de 60s da função serverless). Removido antes do envio.
+  dp_maxAttempts?: number;
   [key: string]: unknown;
 };
+
+// Orçamento de tempo total da cadeia (função serverless tem limite de 60s).
+const CHAIN_DEADLINE_MS = 55_000;
+const MIN_ATTEMPT_MS = 6_000;
 
 class ZaiClient {
   public readonly chat: {
@@ -170,7 +177,7 @@ class ZaiClient {
     return headers;
   }
 
-  private async post(pathname: string, body: ChatBody): Promise<ZaiChatResponse> {
+  private async post(pathname: string, body: ChatBody, timeoutMs?: number): Promise<ZaiChatResponse> {
     const url = `${this.res.cfg.baseUrl}${pathname}`;
     let response: Response;
     try {
@@ -178,8 +185,14 @@ class ZaiClient {
         method: "POST",
         headers: this.headers(),
         body: JSON.stringify(body),
+        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
       });
     } catch (err) {
+      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+        throw new Error(
+          "A IA demorou demais para responder e a chamada foi cancelada. Tente novamente em instantes."
+        );
+      }
       throw new Error(
         `Não consegui falar com a API de IA: ${err instanceof Error ? err.message : "erro de rede"}`
       );
@@ -217,7 +230,9 @@ class ZaiClient {
   }
 
   private prepare(body: ChatBody, model?: string): ChatBody {
-    const payload: ChatBody = { ...body };
+    // Remove flags internas e monta o payload final.
+    const { dp_maxAttempts: _drop, ...rest } = body;
+    const payload: ChatBody = { ...rest };
     if (this.res.provider === "google") {
       // A API pública do Google não entende o campo `thinking` do z.ai.
       delete payload.thinking;
@@ -244,14 +259,23 @@ class ZaiClient {
     if (this.res.mode === "internal") {
       return this.post(pathname, this.prepare(body));
     }
-    const models = this.modelCandidates(kind);
+    // Modelo explícito no pedido tem prioridade (permite diagnosticar um modelo
+    // específico, ex.: via /api/ai-test).
+    const explicit = typeof body.model === "string" && body.model.trim() ? [body.model.trim()] : null;
+    const candidates = explicit ?? this.modelCandidates(kind);
+    const maxAttempts =
+      typeof body.dp_maxAttempts === "number" && body.dp_maxAttempts > 0
+        ? Math.min(body.dp_maxAttempts, candidates.length)
+        : candidates.length;
+    const start = Date.now();
+    const remainingMs = () => Math.max(MIN_ATTEMPT_MS, CHAIN_DEADLINE_MS - (Date.now() - start));
     let lastError: unknown;
-    for (let i = 0; i < models.length; i++) {
+    for (let i = 0; i < maxAttempts; i++) {
       try {
-        return await this.post(pathname, this.prepare(body, models[i]));
+        return await this.post(pathname, this.prepare(body, candidates[i]), remainingMs());
       } catch (err) {
         lastError = err;
-        if (i < models.length - 1 && isModelUnavailable(err)) continue;
+        if (i < maxAttempts - 1 && isModelUnavailable(err)) continue;
         throw err;
       }
     }
