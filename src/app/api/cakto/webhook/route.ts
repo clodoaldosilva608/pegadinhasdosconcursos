@@ -1,8 +1,10 @@
-// Webhook da Cakto — liberação automática ao confirmar o pagamento.
+// Webhook da Cakto — liberação automática ao confirmar o pagamento
+// + captura de abandono de checkout (recuperação de venda).
 //
 // Configuração no painel Cakto (Integrações > Webhooks):
 //   URL: https://pegadinhasdosconcursos.vercel.app/api/cakto/webhook
-//   Eventos: purchase_approved, refund, chargeback, subscription_canceled
+//   Eventos: purchase_approved, subscription_renewed, refund, chargeback,
+//            subscription_canceled, checkout_abandonment
 //   Chave Secreta: o mesmo valor do env CAKTO_WEBHOOK_SECRET
 // A Cakto envia o secret dentro do payload ({secret, event, data}).
 
@@ -20,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 const APPROVED_EVENTS = new Set(["purchase_approved", "subscription_renewed"]);
 const REVOKED_EVENTS = new Set(["refund", "chargeback", "subscription_canceled"]);
+const ABANDONED_EVENTS = new Set(["checkout_abandonment"]);
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const event = String(body?.event ?? "");
   const data = (body?.data ?? {}) as Record<string, unknown>;
-  const customer = data.customer as { email?: string } | undefined;
+  const customer = data.customer as { email?: string; phone?: string } | undefined;
   const email = normalizeEmail(String(customer?.email ?? ""));
   const refId = String((data.refId as string) ?? (data.id as string) ?? "") || null;
   const amountRaw = Number(data.amount);
@@ -55,13 +58,34 @@ export async function POST(req: NextRequest) {
   try {
     const db = await dbReady();
 
-    if (APPROVED_EVENTS.has(event)) {
+    if (ABANDONED_EVENTS.has(event)) {
+      // Cliente preencheu o checkout e não pagou: alimenta a aba "Recuperação"
+      // do painel (WhatsApp/e-mail em 1 clique).
+      const phone = String(customer?.phone ?? "").replace(/\D/g, "").slice(0, 13) || null;
+      await db.abandonedCheckout.upsert({
+        where: { email_plan: { email, plan } },
+        update: { phone: phone ?? undefined, lastEventAt: new Date(), recoveredAt: null },
+        create: {
+          email,
+          plan,
+          phone,
+          productRef: refId,
+          lastEventAt: new Date(),
+        },
+      });
+      console.log("[cakto-webhook] abandono registrado:", email, plan, event);
+    } else if (APPROVED_EVENTS.has(event)) {
       await upsertApprovedPurchase({
         email,
         plan,
         refId,
         amountCents,
         paidAtMs: Number.isFinite(paidAtMs) ? paidAtMs : null,
+      });
+      // Compra aprovada: qualquer abandono pendente deste e-mail vira "recuperado".
+      await db.abandonedCheckout.updateMany({
+        where: { email, recoveredAt: null },
+        data: { recoveredAt: new Date() },
       });
       console.log("[cakto-webhook] acesso liberado:", email, plan, event);
     } else if (REVOKED_EVENTS.has(event)) {

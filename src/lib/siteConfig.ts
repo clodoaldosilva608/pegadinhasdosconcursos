@@ -28,6 +28,13 @@ export const SITE_DEFAULTS: Record<string, string> = {
   section_leads: "1",
   section_plans: "1",
   section_faq: "1",
+  section_share: "1",
+  // Seção de compartilhamento (divulgação)
+  share_title: "Ajude um amigo a não cair na pegadinha",
+  share_subtitle:
+    "Quem estuda junto passa junto. Compartilhe o Detector com quem também está na batalha do concurso — um convite seu pode salvar meses de estudo de alguém.",
+  // Recuperação de venda (banner anti-abandono para quem clicou e não pagou)
+  recovery_banner_enabled: "1",
   // Seção de avisos (funil)
   leads_title: "Receba novidades e ofertas em primeira mão",
   leads_subtitle:
@@ -58,6 +65,10 @@ const PUBLIC_KEYS = [
   "section_leads",
   "section_plans",
   "section_faq",
+  "section_share",
+  "share_title",
+  "share_subtitle",
+  "recovery_banner_enabled",
   "leads_title",
   "leads_subtitle",
   "plans_pass30_price",

@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { InstallAndShare } from "@/components/pwa/InstallAndShare";
 import { PlansSection } from "@/components/landing/PlansSection";
+import { RecoveryBanner } from "@/components/landing/RecoveryBanner";
+import { ShareCard } from "@/components/pwa/ShareCard";
 import { LeadForm } from "@/components/launch/LeadForm";
 import { Countdown } from "@/components/launch/Countdown";
 import { SupportButton } from "@/components/landing/SupportButton";
@@ -36,6 +38,7 @@ const NAV = [
   { href: "#como-usar", label: "Como usar" },
   { href: "#planos", label: "Planos" },
   { href: "#faq", label: "Dúvidas" },
+  { href: "#compartilhar", label: "Compartilhar" },
 ];
 
 const FEATURES = [
@@ -157,6 +160,9 @@ export function Landing({
   const badge = cfg.launch_badge ?? "";
   const countdownOn = on("launch_countdown_enabled");
   const steps = launchFree ? STEPS.map((s, i) => (i === 1 ? STEP_FREE : s)) : STEPS;
+  const shareOn = on("section_share");
+  const shareTitle = cfg.share_title ?? "";
+  const shareSubtitle = cfg.share_subtitle ?? "";
 
   return (
     <main className="dp-app-bg min-h-screen w-full">
@@ -303,6 +309,11 @@ export function Landing({
         </div>
       </section>
 
+      {/* Banner de recuperação (anti-abandono): quem clicou em pagar e voltou */}
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <RecoveryBanner enabled={on("recovery_banner_enabled")} />
+      </div>
+
       {/* O que é */}
       {on("section_features") && (
         <section id="o-que-e" className="mx-auto max-w-5xl scroll-mt-20 px-4 py-10 sm:px-6">
@@ -427,6 +438,20 @@ export function Landing({
         </section>
       )}
 
+      {/* Compartilhar (divulgação com incentivo) */}
+      {shareOn && (
+        <section id="compartilhar" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-10 sm:px-6">
+          <SectionHeading
+            eyebrow="Divulgação"
+            title={shareTitle}
+            subtitle={shareSubtitle}
+          />
+          <div className="mt-6">
+            <ShareCard />
+          </div>
+        </section>
+      )}
+
       {/* Footer */}
       <footer className="mt-6 border-t border-[#f0e2cf] bg-[#fdf3e6]/70 px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-5xl">
@@ -457,6 +482,14 @@ export function Landing({
                 <>
                   <a href="#faq" className="text-[#0b7d61] hover:underline">
                     Dúvidas
+                  </a>
+                  <span className="text-[#d9c8b4]">·</span>
+                </>
+              )}
+              {shareOn && (
+                <>
+                  <a href="#compartilhar" className="text-[#0b7d61] hover:underline">
+                    Compartilhar
                   </a>
                   <span className="text-[#d9c8b4]">·</span>
                 </>

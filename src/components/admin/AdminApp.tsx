@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PLAN_LABELS } from "@/lib/plans";
 import { SupportSection } from "@/components/admin/SupportSection";
 import { SiteSection } from "@/components/admin/SiteSection";
+import { RecoveriesSection } from "@/components/admin/RecoveriesSection";
 
 // ===== tipos =====
 
@@ -75,7 +76,7 @@ interface Overview {
 }
 
 type Session = "loading" | "anon" | "ok";
-type Tab = "overview" | "purchases" | "leads" | "support" | "site" | "accounts";
+type Tab = "overview" | "purchases" | "leads" | "recoveries" | "support" | "site" | "accounts";
 
 const fmtBRL = (cents: number | null) =>
   cents === null ? "—" : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -1171,6 +1172,7 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Users }> = [
   { id: "overview", label: "Visão geral", icon: BarChart3 },
   { id: "purchases", label: "Usuários & planos", icon: BadgeDollarSign },
   { id: "leads", label: "Leads", icon: Users },
+  { id: "recoveries", label: "Recuperação", icon: Undo2 },
   { id: "support", label: "Suporte", icon: LifeBuoy },
   { id: "site", label: "Site", icon: SlidersHorizontal },
   { id: "accounts", label: "Conta interna", icon: UserRoundCog },
@@ -1272,6 +1274,7 @@ export function AdminApp() {
           {tab === "overview" && <OverviewSection />}
           {tab === "leads" && <LeadsSection />}
           {tab === "purchases" && <PurchasesSection />}
+          {tab === "recoveries" && <RecoveriesSection />}
           {tab === "support" && <SupportSection />}
           {tab === "site" && <SiteSection />}
           {tab === "accounts" && <AccountsSection />}

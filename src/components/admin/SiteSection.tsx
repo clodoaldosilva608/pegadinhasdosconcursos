@@ -284,6 +284,38 @@ export function SiteSection() {
           </Field>
         </Group>
 
+        <Group title="Recuperação de venda (anti-abandono)">
+          <Toggle
+            label="Banner de recuperação para quem clicou e não pagou"
+            hint="Mostra o que a pessoa ganha vs. o que arrisca, com o botão de finalizar o Pix."
+            checked={isOn("recovery_banner_enabled")}
+            onChange={(next) => toggle("recovery_banner_enabled", next)}
+          />
+          <p className="text-[11px] font-semibold text-[#a08a77]">
+            Abandonos do checkout da Cakto chegam na aba “Recuperação”, com WhatsApp/e-mail em 1 clique.
+          </p>
+        </Group>
+
+        <Group title="Compartilhamento (divulgação)">
+          <Toggle
+            label="Seção “Compartilhar” na landing"
+            hint="Cartão de convite completo: banner, descrição, link, WhatsApp/Telegram/copiar."
+            checked={isOn("section_share")}
+            onChange={(next) => toggle("section_share", next)}
+          />
+          <Field label="Título da seção de compartilhamento">
+            <input value={values.share_title ?? ""} onChange={(event) => set("share_title", event.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Descrição (mensagem de incentivo)">
+            <textarea
+              value={values.share_subtitle ?? ""}
+              onChange={(event) => set("share_subtitle", event.target.value)}
+              rows={3}
+              className={`${inputCls} resize-none`}
+            />
+          </Field>
+        </Group>
+
         <Group title="Suporte (interno)">
           <Field
             label="E-mail de suporte"

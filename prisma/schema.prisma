@@ -73,3 +73,19 @@ model SupportMessage {
 
   @@index([status])
 }
+
+// Recuperação de venda: quem preencheu o checkout da Cakto e não pagou
+// (evento checkout_abandonment). Libera o envio 1-clique no painel admin.
+model AbandonedCheckout {
+  id          String    @id @default(cuid())
+  email       String
+  plan        String // pass30 | lifetime
+  phone       String?
+  productRef  String?
+  lastEventAt DateTime  @default(now())
+  recoveredAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([email, plan])
+  @@index([email])
+}

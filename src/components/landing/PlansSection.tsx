@@ -7,6 +7,7 @@
 import { BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { getPlans, type PlanInfo, type PlanPriceOverrides } from "@/lib/plans";
+import { markCheckoutIntent } from "@/lib/recovery";
 import { SupportButton } from "@/components/landing/SupportButton";
 
 function PlanCard({ plan }: { plan: PlanInfo }) {
@@ -14,6 +15,9 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
 
   const handleCheckout = () => {
     if (!plan.checkout) return;
+    // Registra a intenção de compra: se o usuário voltar sem pagar,
+    // o banner de recuperação mostra o que ele ganha/perde (anti-abandono).
+    markCheckoutIntent(plan.id);
     setOpening(true);
     window.location.href = plan.checkout;
   };

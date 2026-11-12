@@ -259,3 +259,25 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 **Notas:** chave PIX de recebimento não é configurável pela API pública (só `withdrawals_create`) — conferir no painel Cakto (Dados bancários/Saque). Checkout default do Cakto vem com Cartão pré-selecionado (PIX disponível); ajuste fino visual via Checkout Builder no painel. Segurança: credenciais somente em env/.env.cakto (chmod 600, gitignored); nenhum segredo no repositório.
 
 **Git:** commit pendente deste worklog (autor clodoaldosilva608@gmail.com).
+
+## Task 16 — Recuperação de venda (anti-abandono + reativação) e divulgação (2026-11-12)
+
+**Recuperação em 3 camadas:**
+1. **In-app (anti-abandono):** clique em "Pagar com Pix" grava `dp_checkout_intent` (localStorage, TTL 30 dias) — `markCheckoutIntent()` no PlansSection (landing + gate). Novo `RecoveryBanner` (landing, após o hero; e no LockedView do AccessGate): aparece quando há intenção sem conclusão e sem acesso liberado; copy ganho/perda (`RECOVERY_GAINS`/`RECOVERY_LOSSES` em `src/lib/recovery.ts`: o que leva vs. o que arrisca — pegadinha custa aprovação, concorrente treinando…), botão "Finalizar meu Pix agora" (link do plano) e "Agora não" (silencia 7 dias via `dp_recovery_dismissed_at`). Flag `recovery_banner_enabled` (SiteConfig, exposta em `/api/launch` como `recoveryBannerEnabled`).
+2. **Cakto checkout_abandonment:** evento registrado no webhook App 83792 via API (PUT /public_api/webhook/83792 — 6 eventos). A rota `/api/cakto/webhook` faz upsert em `AbandonedCheckout` (único por email+plan, phone/productRef/lastEventAt); `purchase_approved`/`subscription_renewed` marcam `recoveredAt` automaticamente (updateMany por e-mail).
+3. **Painel — nova aba "Recuperação"** (`/api/admin/recoveries` GET + `[id]` PATCH/DELETE): lista pendentes primeiro, busca por e-mail/WhatsApp/pedido, filtro "mostrar recuperados"; **envio 1-clique**: WhatsApp (`waRecoveryLink`, +55 automático) e e-mail (`mailtoRecoveryLink` com assunto+corpo prontos), "Copiar mensagem", "Marcar recuperado"/"Reabrir", "Excluir". Mensagem pronta cita plano, preço, vantagens, riscos, link do checkout e garantia CDC 7 dias.
+   - Prisma: model `AbandonedCheckout` + CREATE TABLE/índices no bootstrap (`db.ts`).
+
+**Divulgação (compartilhamento incentivado):**
+- **Landing:** nova seção `#compartilhar` (`section_share`, `share_title` "Ajude um amigo a não cair na pegadinha", `share_subtitle` de incentivo) com o ShareCard completo (banner+descrição+link; WhatsApp/Telegram/Compartilhar/Copiar/banner-imagem); link "Compartilhar" na navegação e no rodapé.
+- **Dashboard (/app):** novo `MiniShare` no HomeView (após InstallBanner) — convite compacto "Convide um amigo concurseiro" com as mesmas 4 ações + botão do banner.
+- Tudo editável no painel (aba Site → grupos "Compartilhamento (divulgação)" e "Recuperação de venda (anti-abandono)"; chaves novas na whitelist via SITE_DEFAULTS/PUBLIC_KEYS).
+
+**Testes:** tsc 0 erros em src/, eslint limpo; local (dev 3111): webhook abandono ×2 → 1 linha (dedup email+plan), purchase_approved → Purchase approved + abandono recuperado, sem secret → 401; admin recoveries GET/PATCH(reabrir, marcar+editar phone)/DELETE + 401 sem sessão; browser: clique em pagar grava intent → banner com ganho/perda → "Finalizar meu Pix agora" → pay.cakto.com.br → "Agora não" persiste dismissal; /app mostra MiniShare; aba Recuperação com contador e estado vazio.
+
+**Produção:** deploy dpl 9cbddf2m0 READY — `/api/launch` com `recoveryBannerEnabled:true`; landing com título da seção share + âncora no nav/rodapé; `event_test` checkout_abandonment entregue com **200 em 192 ms** (payload de teste com e-mail/secret confirmados no event_history); RecoveryBanner em produção com intent simulado (heading "Sua compra do Passe 30 dias ficou no meio do caminho" + ganhos/riscos + botão) e MiniShare no /app.
+- **Limitação conhecida (pré-existente):** banco /tmp efêmero por instância fria — o registro de abandono criado pela instância do webhook pode não aparecer imediatamente no GET de outra instância fria (mesmo comportamento de leads/compras/suporte). Para persistência total: migrar p/ Postgres/Neon (recomendação mantida).
+
+**Notas:** sem serviço de e-mail próprio — recuperação por envio 1-clique (painel) + recomendação de ativar a recuperação automática nativa da Cakto no painel deles como camada principal. Sem urgência falsa: argumento é preço de lançamento + risco real. Fase futura sugerida: programa de indicação com recompensa (cupons no backend).
+
+**Git:** commit pendente (autor clodoaldosilva608@gmail.com).

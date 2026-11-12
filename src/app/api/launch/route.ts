@@ -18,6 +18,7 @@ export async function GET() {
     freeUntilLabel: launch.untilLabel,
     countdownEnabled: cfgBool(values, "launch_countdown_enabled"),
     paywallEnabled: cfgBool(values, "paywall_enabled"),
+    recoveryBannerEnabled: cfgBool(values, "recovery_banner_enabled"),
     serverNow: new Date().toISOString(),
   });
 }

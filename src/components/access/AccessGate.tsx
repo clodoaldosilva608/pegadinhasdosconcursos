@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Loader2, LockKeyhole, LogIn, MailCheck, ScanSearch } from "lucide-react";
 import { PlansSection } from "@/components/landing/PlansSection";
+import { RecoveryBanner } from "@/components/landing/RecoveryBanner";
 import { InstallBanner } from "@/components/detector/InstallBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
 import { LeadForm } from "@/components/launch/LeadForm";
@@ -141,9 +142,11 @@ function VerifyBox({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void 
 function LockedView({
   onUnlocked,
   deadlineLabel,
+  recoveryEnabled,
 }: {
   onUnlocked: (access: StoredAccess) => void;
   deadlineLabel: string;
+  recoveryEnabled: boolean;
 }) {
   return (
     <main className="dp-app-bg min-h-screen w-full">
@@ -190,6 +193,10 @@ function LockedView({
         </div>
 
         <div className="mt-4">
+          <RecoveryBanner enabled={recoveryEnabled} />
+        </div>
+
+        <div className="mt-4">
           <PlansSection compact />
         </div>
 
@@ -233,6 +240,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   const [launchFree, setLaunchFree] = useState(false);
   const [freeUntil, setFreeUntil] = useState(LAUNCH_FREE_UNTIL_ISO);
   const [deadlineLabel, setDeadlineLabel] = useState(LAUNCH_DEADLINE_LABEL);
+  const [recoveryEnabled, setRecoveryEnabled] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,10 +258,14 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
             freeUntil?: string;
             freeUntilLabel?: string;
             paywallEnabled?: boolean;
+            recoveryBannerEnabled?: boolean;
           };
           free = data.launchFree === true || data.paywallEnabled === false;
           if (data.freeUntil) setFreeUntil(data.freeUntil);
           if (data.freeUntilLabel) setDeadlineLabel(data.freeUntilLabel);
+          if (typeof data.recoveryBannerEnabled === "boolean") {
+            setRecoveryEnabled(data.recoveryBannerEnabled);
+          }
         }
       } catch {
         free = false;
@@ -308,6 +320,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
         window.scrollTo({ top: 0 });
       }}
       deadlineLabel={deadlineLabel}
+      recoveryEnabled={recoveryEnabled}
     />
   );
 }

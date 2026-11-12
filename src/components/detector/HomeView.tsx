@@ -4,6 +4,7 @@ import { Camera, ListChecks, Lightbulb, Sparkles, Loader2 } from "lucide-react";
 import { UploadZone } from "./UploadZone";
 import { AiKeySection } from "./AiKeySection";
 import { InstallBanner } from "./InstallBanner";
+import { MiniShare } from "./MiniShare";
 import type { AccountInfo } from "@/lib/types";
 
 interface HomeViewProps {
@@ -61,6 +62,9 @@ export function HomeView({
 
       {/* PWA instalável */}
       <InstallBanner />
+
+      {/* Divulgação: convite para amigos e redes sociais */}
+      <MiniShare />
 
       {/* CTA verde */}
       <section
