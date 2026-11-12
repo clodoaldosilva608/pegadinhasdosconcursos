@@ -237,3 +237,25 @@ das envs 200; settings/admin 200; E2E browser produção (modal ocultando o e-ma
 login do painel) com screenshots scripts/e2e_prod_*.png.
 
 **Git:** 17897f1 (autor clodoaldosilva608@gmail.com), push origin main.
+
+## Task 15 — Checkout Cakto real: produtos Pix, webhook assinado e links de pagamento (2026-11-12)
+
+**Criado na Cakto via API pública (`api.cakto.com.br/public_api`, OAuth client credentials) usando o MCP da Cakto (docs.cakto.com.br) para descobrir contratos:**
+- Produto **"Detector de Pegadinhas — Passe 30 dias"** (R$ 9,90, `unique`): id `279f193a-208b-4d3a-aecb-8aae38044ccf`, oferta/checkout `pay.cakto.com.br/v3wpwws`.
+- Produto **"Detector de Pegadinhas — Acesso Vitalício"** (R$ 29,90, `unique`): id `efb7388d-9aa9-42c7-97ae-f582cefda87c`, checkout `pay.cakto.com.br/qum9kai`.
+- Ambos: Pix + Cartão (`pix_auto` é rejeitado para `unique`), salesPage = domínio do app, `emailAccessLink` = /app com `contentDeliveries: ["emailAccess"]` (Cakto envia e-mail pós-compra apontando para a verificação no app).
+- Webhook **App 83792** "Detector de Pegadinhas — Liberação automática": URL `/api/cakto/webhook`, produtos [pass30, lifetime], eventos `purchase_approved, subscription_renewed, refund, chargeback, subscription_canceled`, status active. A Cakto gera `fields.secret` e envia `{secret, event, data}` (User-Agent CaktoBot/1.0) — exatamente o formato que a rota já tratava.
+
+**Envs de produção (Vercel):** CAKTO_CLIENT_ID/CAKTO_CLIENT_SECRET (consulta ao vivo de pedidos), CAKTO_PRODUCT_ID_PASS30/_LIFETIME (mapeamento de plano), CAKTO_WEBHOOK_SECRET (= secret gerado pela Cakto), NEXT_PUBLIC_CAKTO_CHECKOUT_PASS30/_LIFETIME (links pay.cakto.com.br). Espelhadas no `.env` local (ignorado pelo git). Tokens/estado em `scripts/cakto_state/` (gitignored).
+
+**Deploy:** dpl 1fyqm7opk READY (~44s).
+
+**Verificação de produção:**
+- HTML: preços R$ 9,90/R$ 29,90 renderizados; links ficam no bundle client (`window.location.href = plan.checkout`) — confirmados os dois URLs inlineados no chunk 2c4764f1b8d662ef.js.
+- E2E browser: "Pagar com Pix · R$ 9,90" → `pay.cakto.com.br/v3wpwws` ("Detector de Pegadinhas — Passe 30 dias", formulário Nome/Email, opções PIX/Cartão/Cartão+Pix, 1x R$ 9,90); "Pagar com Pix · R$ 29,90" → `pay.cakto.com.br/qum9kai` ("Acesso Vitalício").
+- Webhook: `event_test` purchase_approved enviado pela Cakto → entrega registrada com **event_status 200, response {ok:true}, 446 ms, errors null** (secret validado); POST sem secret → **401**.
+- `/api/access/verify` com e-mail sem compra → `not_found` (fallback de consulta ao vivo à API da Cakto saudável em produção).
+
+**Notas:** chave PIX de recebimento não é configurável pela API pública (só `withdrawals_create`) — conferir no painel Cakto (Dados bancários/Saque). Checkout default do Cakto vem com Cartão pré-selecionado (PIX disponível); ajuste fino visual via Checkout Builder no painel. Segurança: credenciais somente em env/.env.cakto (chmod 600, gitignored); nenhum segredo no repositório.
+
+**Git:** commit pendente deste worklog (autor clodoaldosilva608@gmail.com).
