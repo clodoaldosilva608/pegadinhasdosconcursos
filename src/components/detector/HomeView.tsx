@@ -3,6 +3,7 @@
 import { Camera, ListChecks, Lightbulb, Sparkles, Loader2 } from "lucide-react";
 import { UploadZone } from "./UploadZone";
 import { AiKeySection } from "./AiKeySection";
+import { InstallBanner } from "./InstallBanner";
 import type { AccountInfo } from "@/lib/types";
 
 interface HomeViewProps {
@@ -57,6 +58,9 @@ export function HomeView({
 
       {/* Chave de IA do usuário (BYOK) */}
       <AiKeySection />
+
+      {/* PWA instalável */}
+      <InstallBanner />
 
       {/* CTA verde */}
       <section

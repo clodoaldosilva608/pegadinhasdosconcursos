@@ -14,6 +14,16 @@ export const metadata: Metadata = {
   description:
     "A ferramenta que te explica os distratores das questões e aprofunda o conteúdo pelo gabarito. Mande a questão, confirme o que marcou e entenda a pegadinha.",
   keywords: ["concursos", "distratores", "pegadinhas", "questões", "estudos", "Con-curso"],
+  manifest: "/manifest.webmanifest",
+  applicationName: "Pegadinhas",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Pegadinhas",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -35,6 +45,13 @@ export default function RootLayout({
       >
         {children}
         <Toaster />
+        {/* Registro do service worker (PWA instalável, shell offline) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})});}",
+          }}
+        />
       </body>
     </html>
   );
