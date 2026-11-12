@@ -358,3 +358,31 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 **Infra de testes nova:** `scripts/prod_admin.sh`, `scripts/prod_user_p1..p4.sh`, `scripts/ab_lib.sh` (wrapper com retry), `scripts/e2e_task18.sh` atualizado para o webp, `scripts/optimize_logo.py` (no workspace, fora do repo).
 
 **Git:** commit 1e482a8 (logo) + este worklog, push origin main. Produção: https://pegadinhasdosconcursos.vercel.app (dpl mzqevdfpt).
+
+## Task 19 — Banco de dados Supabase (Postgres persistente) em produção (2026-11-12)
+
+**Motivação:** o SQLite em /tmp da Vercel nasce vazio a cada instância fria (dados e usuários se perdem). O dono criou um projeto Supabase e pediu a migração completa.
+
+**Descobertas do projeto:**
+- App já usa Prisma (não SQLite cru) — migração limpa: trocar provider + regenerar engine.
+- Conexão direta `db.<ref>.supabase.co:5432` é IPv6-only: o engine do Prisma não alcança daqui nem da Vercel. Solução: pooler Supavisor.
+- Região descoberta por probe (pgbouncer responde "tenant/user not found" na região errada): **aws-1-us-west-2** (host novo `aws-1-…`, não `aws-0-…`), PostgreSQL 17.11.
+
+**Mudanças no código:**
+- `prisma/schema.prisma`: provider `postgresql` + `directUrl = env("DIRECT_DATABASE_URL")` (migrations) e `url` (runtime, pooler transaction 6543 com `pgbouncer=true&connection_limit=1&sslmode=require`).
+- `src/lib/db.ts`: bootstrap do schema convertido para dialeto Postgres (`DATETIME`→`TIMESTAMP(3)`, `INSERT OR IGNORE`→`ON CONFLICT DO NOTHING`, seed com `new Date()`).
+- `.env.local`: DATABASE_URL (pooler) + DIRECT_DATABASE_URL (session pooler 5432 para push — direta IPv6 não funciona no engine). Valores com `&` precisam de aspas para `source` do bash.
+- Vercel: `DATABASE_URL` antigo removido; novo DATABASE_URL (production+preview) + DIRECT_DATABASE_URL adicionados (secret).
+
+**Banco criado (prisma db push via session pooler):** 8 tabelas — Account (seed interna com 988 análises), Analysis, Purchase, Lead, SiteConfig, SupportMessage, AbandonedCheckout, AppUser — com índices/unique keys equivalentes ao schema anterior.
+
+**Testes:**
+- Smoke local 6/6 (scripts/smoke_supabase_local.sh): build+start lendo SiteConfig do Supabase, upsert de aparelho com visitas incrementando (2 chamadas → visits=2).
+- Verificação de produção 11/11 (scripts/verify_prod_supabase.sh): landing SSR no ar com logo oficial; aparelho persistido com visits=2 entre chamadas (banco compartilhado entre instâncias — o que o /tmp nunca deu); mensagem em POST /api/support gravada com status "new"; conta interna 988.
+- Painel admin (scripts/prod_admin_supabase.sh): login OK; **aviso "Banco de dados temporário" sumiu** (condicional ao SQLite); KPI Usuários do app refletindo aparelhos reais; aba lista aparelhos com plano GRÁTIS LANÇAMENTO; caixa de Suporte mostra mensagem de teste.
+
+**Estado final:** base limpa (0 aparelhos/leads/suporte/SiteConfig — as linhas de teste foram removidas por SQL). Usuários do SQLite efêmero anterior eram voláteis e não sobreviveram aos cold starts — não havia o que migrar. De agora em diante tudo persiste no Supabase.
+
+**Rota de suporte:** POST das mensagens é `/api/support` (o `/api/support/contact` é GET que entrega o canal sob demanda).
+
+**Git:** commit "feat: banco Supabase (Postgres persistente) em produção" + este worklog; deploy dpl g1iic4ysh.

@@ -12,10 +12,9 @@ export const db =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
 
-// Bootstrap do schema (serverless-safe).
-// Na Vercel o banco vive em /tmp e nasce vazio a cada instância fria —
-// garantimos as tabelas + a linha seed da conta antes da primeira consulta.
-// No sandbox/local as tabelas já existem (prisma db push) e isso é no-op.
+// Bootstrap do schema (serverless-safe, Supabase/Postgres).
+// Idempotente: garante as tabelas + a linha seed da conta antes da primeira
+// consulta. Em produção as tabelas já existem (prisma db push) e isso é no-op.
 async function createSchema(): Promise<void> {
   await db.$executeRawUnsafe(
     `CREATE TABLE IF NOT EXISTS "Account" (
@@ -23,7 +22,7 @@ async function createSchema(): Promise<void> {
       "planLabel" TEXT NOT NULL DEFAULT 'Conta interna',
       "analysesLeft" INTEGER NOT NULL DEFAULT 988,
       "noDeadline" BOOLEAN NOT NULL DEFAULT true,
-      "updatedAt" DATETIME NOT NULL
+      "updatedAt" TIMESTAMP(3) NOT NULL
     )`
   );
   await db.$executeRawUnsafe(
@@ -36,7 +35,7 @@ async function createSchema(): Promise<void> {
       "userMarked" TEXT,
       "optionsJson" TEXT NOT NULL,
       "resultJson" TEXT NOT NULL,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
   await db.$executeRawUnsafe(
@@ -48,7 +47,7 @@ async function createSchema(): Promise<void> {
       "provider" TEXT NOT NULL DEFAULT 'cakto',
       "refId" TEXT,
       "amountCents" INTEGER,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
   await db.$executeRawUnsafe(
@@ -66,8 +65,8 @@ async function createSchema(): Promise<void> {
       "consent" BOOLEAN NOT NULL DEFAULT false,
       "source" TEXT NOT NULL DEFAULT 'landing',
       "notes" TEXT,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL
     )`
   );
   await db.$executeRawUnsafe(
@@ -77,7 +76,7 @@ async function createSchema(): Promise<void> {
     `CREATE TABLE IF NOT EXISTS "SiteConfig" (
       "key" TEXT NOT NULL PRIMARY KEY,
       "value" TEXT NOT NULL,
-      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
   await db.$executeRawUnsafe(
@@ -87,7 +86,7 @@ async function createSchema(): Promise<void> {
       "name" TEXT,
       "message" TEXT NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'new',
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
   await db.$executeRawUnsafe(
@@ -100,9 +99,9 @@ async function createSchema(): Promise<void> {
       "plan" TEXT NOT NULL,
       "phone" TEXT,
       "productRef" TEXT,
-      "lastEventAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "recoveredAt" DATETIME,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "lastEventAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "recoveredAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
   await db.$executeRawUnsafe(
@@ -119,17 +118,18 @@ async function createSchema(): Promise<void> {
       "email" TEXT,
       "userAgent" TEXT,
       "visits" INTEGER NOT NULL DEFAULT 1,
-      "firstSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "firstSeenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "lastSeenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
   await db.$executeRawUnsafe(
     `CREATE UNIQUE INDEX IF NOT EXISTS "AppUser_deviceId_key" ON "AppUser"("deviceId")`
   );
   await db.$executeRawUnsafe(
-    `INSERT OR IGNORE INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
-     VALUES ('internal', 'Conta interna', 988, 1, ?)`,
-    Date.now()
+    `INSERT INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
+     VALUES ('internal', 'Conta interna', 988, true, $1)
+     ON CONFLICT ("id") DO NOTHING`,
+    new Date()
   );
 }
 
