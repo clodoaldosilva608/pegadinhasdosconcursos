@@ -300,3 +300,43 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 **Testes:** tsc 0 erros em src/, eslint limpo; browser local (3111): 26 flocos + 14 lâmpadas + santa OK, balão "Olá!", desktop sem sobreposição, mobile sem presentes e tagline legível; `prefers-reduced-motion` via CSS. Constatado durante o teste: service worker da PWA servia HTML antigo em cache — desregistrado/caches limpos para validar (usuários reais recebem a nova versão pelo fluxo de atualização do SW).
 
 **Git:** commit pendente deste worklog (autor clodoaldosilva608@gmail.com).
+
+## Task 18 — Natal completo: presente, neve global, parceiro DestravaStudy e usuários do app (2026-11-12)
+
+**Contexto:** a Task 18 original foi implementada e validada numa sessão anterior, mas o sandbox foi reciclado antes do push e o trabalho local se perdeu. Esta sessão reimplementou tudo de zero sobre a Task 17 (`2b2374e`), com os mesmos requisitos.
+
+**Pedido do usuário:** contagem regressiva até 01/01/2027 com tema natalino; selo "Presente de Natal" no Vitalício (copy "dê este presente a você mesmo"); neve em toda a página em dezembro com toggle no painel; botão "Presentear um amigo"; desligamento automático após 06/01 (Dia de Reis); banner cross-promo do DestravaStudy (landing + dashboard) com logomarca e botão pulsando; correção do painel admin que mostrava zero usuários após abrir o app.
+
+**Temporada natalina (`src/lib/season.ts`, novo):**
+- Janela 01/11 → 06/01 (Dia de Reis), fuso America/Sao_Paulo, decisão sempre no servidor; em 07/01 o site volta ao normal sozinho (sem parecer desatualizado). `isFestiveSeason` (painel ∧ temporada) amarra TODAS as decorações: faixa, contagem, presente.
+- Painel: chave mestra `christmas_season_enabled` (grupo "Natal (temporada 01/11 → 06/01)").
+
+**Contagem natalina:** `Countdown` ganhou `variant="christmas"` — caixas vermelhas com borda/números dourados; no hero a copy vira "🎁 Presente de lançamento: o acesso grátis termina em" e a caixa ganha degradê dourado (copy alternativa fora da temporada).
+
+**Presente de Natal (PlansSection + `GiftModal` novo):**
+- Vitalício durante a temporada: selo vermelho "🎁 Presente de Natal" (`data-testid=gift-seal`), anel vermelho, preço em vermelho, caixa dourada "Dê este presente a você mesmo — ou para quem está na batalha do concurso" e botão "Presentear um amigo".
+- Modal em 3 passos (quem recebe → quem dá + dedicatória → confirmação) → POST /api/support com tag `[Presente de Natal]` e dados de quem recebe/dá; passo final mostra status, nome do presenteado e botão "Pagar o presente agora · R$ 29,90" (checkout Cakto). Rótulos aria inequívocos ("Nome de quem presenteia" etc.) para não colidir com o form de leads.
+- Fora da temporada (07/01+): nada disso existe no HTML —PlansSection volta ao card "Mais escolhido" padrão.
+
+**Neve em toda a página (`SnowfallOverlay` novo):**
+- Camada fixa com 42 flocos (PRNG mulberry32, semente 20261218 — SSR idêntico ao cliente), reusa os keyframes `dp-xmas-snow` com `--dp-snow-fall: 108vh`; aria-hidden/pointer-events-none; reduced-motion desliga.
+- Painel: seletor `snowfall_page` = **auto (só dezembro) / sempre ligada / desligada**; estado exposto em `/api/launch` como `snowfallActive`. Em novembro (auto) nenhum floco sai no HTML.
+
+**Banner parceiro DestravaStudy (`PartnerBanner` novo):**
+- Card com logomarca em moldura com halo dourado, badge "★ Plataforma parceira", descrição e botão "Acessar agora" PULSANDO (classe dp-pulse existente) → destravastudy.vercel.app em nova aba.
+- Na landing (após o banner de recuperação) via SSR; no dashboard (/app) via `PartnerBannerClient` que lê `/api/launch` (evita perfurar props até o HomeView).
+- Logo padrão `public/destrava-logo.svg` (emblema autoral: águia dourada em escudo verde, estrela e três linhas "estude-evolua-conquiste") — o arquivo original enviado pelo usuário se perdeu na reciclagem; URL, badge, título, descrição e texto do botão são editáveis no painel (grupo "Plataforma parceira"), então basta trocar `partner_banner_logo` para o PNG oficial.
+
+**Fix do admin — "zero usuários":**
+- Causa: abrir o app não registrava nada (só compras criavam registros) e, na Vercel, o SQLite em /tmp nasce vazio a cada instância fria.
+- Novo model `AppUser` (schema + bootstrap `db.ts`): cada aparelho que abre o /app sobe um POST `/api/app-track` (fire-and-forget, `src/lib/device.ts`, deviceId em localStorage + plano/e-mail do acesso verificado; rate limit 60/10min por IP). Upsert por deviceId com visitas++ e lastSeenAt.
+- Painel: KPI "Usuários do app" no Visão geral (total + novos 7 dias), NOVA ABA "Usuários do app" (tabela e-mail/plano/aparelho resumido/visitas/1ª-última visita, editar plano-e-mail, excluir) e APIs `/api/admin/appusers` GET + `[id]` PATCH/DELETE.
+- Aviso de banco temporário: overview retorna `dbEphemeral` (VERCEL=1 ∧ DATABASE_URL contém /tmp) e o Visão geral mostra nota amarela recomendando Neon/Turso/Postgres — evita o susto de "perdi meus dados".
+
+**Testes:** tsc 0 erros, eslint 0; testes de temporada `scripts/test_season.ts` (bun) 18/18 — bordas 31/10→01/11, Natal, 06/01 23:59 dentro, 07/01 00:00 fora, fevereiro fora, todo ano, dezembro p/ neve, conversão UTC↔Brasília; E2E API+SSR (`scripts/e2e_task18.sh`) 35/35 — /api/launch, landing com selo/copy/botão/banners, logo 200, presente gravado no SQLite, app-track criando AppUser, login admin, KPI total=1, neve on→42 flocos, temporada off→sem nada, reset; E2E browser (`scripts/e2e_browser.sh`) 27/27 — modal 3 passos até "Pedido de presente registrado!" + linha no banco, banner com pulso na landing e no /app, painel (KPI=1, aba com GRÁTIS LANÇAMENTO, seletor de neve salvando), 42 flocos na página, mobile sem sobreposição. Screenshots em `scripts/e2e_t18_*.png`.
+
+**Produção:** deploy dpl fsausasjw (pegadinhasdosconcursos-fsausasjw.vercel.app) READY em 49s, alias pegadinhasdosconcursos.vercel.app. Verificação 17/17 (`scripts/verify_prod_task18.sh`): /api/launch com christmasSeason/snowfallAuto/partner, SSR com selo+presente+banners+contagem temática, logo 200, app-track ok, /app 200; browser 7/7 (`scripts/verify_prod_browser.sh`): selo, banner+pulso, contagem, modal abre e avança no /app e na landing (screenshots `scripts/e2e_t18_prod_*.png`). Painel admin de produção não foi exercitado (senha do dono não está no sandbox) — mesmas rotas validadas localmente.
+
+**Notas:** o botão "Presentear" exige checkout configurado (`NEXT_PUBLIC_CAKTO_CHECKOUT_*`) — intencional, para não oferecer presente sem link de pagamento. Neve auto fica ligada sozinha em dezembro (01/12→31/12 Brasília) e desliga em 01/01. Limite conhecido mantido: banco /tmp efêmero na Vercel (aviso adicionado ao painel); migração p/ Postgres continua recomendada.
+
+**Git:** commit a0c3d62 (feat) + este worklog (autor clodoaldosilva608@gmail.com), push origin main; deploy CLI `vercel deploy --prod` (sem integração Git no projeto).
