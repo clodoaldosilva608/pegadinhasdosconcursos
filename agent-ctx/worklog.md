@@ -61,3 +61,40 @@ após cold start, verificação por e-mail precisa da consulta ao vivo Cakto (cl
 
 **Git:** dfeb80a (autor clodoaldosilva608@gmail.com), push --force após divergência
 benigna do commit PWA (ba8e59c remoto ≡ ada07b5 local, só modo de arquivo).
+
+## Task 12 — Convite compartilhado completo: banner + descrição + link
+
+**Pedido:** ao compartilhar a aplicação com os amigos, o convite já deve ir com um
+banner, uma descrição e o link da aplicação.
+
+**Implementação:**
+- `public/banner-share.png` (1200×630, PIL — `scripts/make_banner.py`): banner social
+  na identidade da landing (creme/esmeralda), com marca+lupa, título, tagline, chips
+  (Distrator / Operador semântico / Método 3C), cartão ilustrativo de análise
+  (assertiva com "sempre" destacado + 3 alternativas) e a URL do app em pill esmeralda.
+  Guarda anti-transbordo de texto no script.
+- `layout.tsx`: `metadataBase` (NEXT_PUBLIC_SITE_URL ou domínio de produção) +
+  `openGraph` (title/description/url/locale pt_BR/siteName/image 1200×630 com alt) +
+  `twitter` summary_large_image. WhatsApp, Telegram e redes sociais agora mostram o
+  banner automaticamente como prévia do link.
+- `share.ts`: `SHARE_TITLE`, `bannerUrl()`, `shareDescription()` (descrição sem URL),
+  `shareText()` (descrição + link), `copyInvite()` (copia o convite completo, com
+  fallback execCommand), `shareBannerImage()` (compartilha o PNG como arquivo via
+  Share Sheet `files` + `canShare`; sem suporte → download do PNG; AbortError → cancelled).
+- `ShareCard.tsx`: nova **prévia do convite** ("PRÉVIA DO CONVITE · BANNER + DESCRIÇÃO
+  + LINK") com o banner renderizado (next/image), a descrição e o link destacado, chips
+  "Banner anexado / Descrição pronta / Link incluído"; botão de copiar agora envia o
+  convite completo ("Copiar convite" → "Convite copiado") e novo botão "Quero enviar só
+  o banner (imagem)" com estados enviada/salva. Vale também no AccessGate (compact) e
+  em /obrigado.
+
+**Testes:** tsc/lint limpos (erro preexistente em skills/ é ignorado pelo build —
+next.config `ignoreBuildErrors` e skills fora do git); dev 3111: og:meta absolutas +
+banner 200; E2E local: appinstalled → ShareCard com prévia, "Copiar convite" →
+"Convite copiado", wa.me com descrição+link codificados, /app (compact) ok.
+**Produção:** deploy pegadinhasdosconcursos-enqrj19tj Ready (43s); og:image absoluta
+(`https://pegadinhasdosconcursos.vercel.app/banner-share.png`), banner 200 83 KB,
+twitter:card summary_large_image; E2E produção confirmou prévia do convite no DOM e
+banner carregado via otimizador Next.
+
+**Git:** 1baa172 (autor clodoaldosilva608@gmail.com), push origin main OK.
