@@ -54,3 +54,22 @@ model Lead {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Configuração do site editável pelo painel admin (key/value sobre defaults).
+model SiteConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Caixa de entrada do suporte (botão "Suporte" da landing — sem e-mail visível).
+model SupportMessage {
+  id        String   @id @default(cuid())
+  email     String
+  name      String?
+  message   String
+  status    String   @default("new") // new | read | replied
+  createdAt DateTime @default(now())
+
+  @@index([status])
+}

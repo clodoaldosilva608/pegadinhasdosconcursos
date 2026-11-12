@@ -2,10 +2,12 @@
 
 // Seção de planos (Passe 30 dias / Vitalício) — usada na landing e no
 // bloqueio de acesso. Checkout via Cakto (Pix), liberação automática.
+// Preços podem ser sobrescritos pelo painel admin (prop priceOverrides).
 
 import { BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { SUPPORT_EMAIL, getPlans, type PlanInfo } from "@/lib/plans";
+import { getPlans, type PlanInfo, type PlanPriceOverrides } from "@/lib/plans";
+import { SupportButton } from "@/components/landing/SupportButton";
 
 function PlanCard({ plan }: { plan: PlanInfo }) {
   const [opening, setOpening] = useState(false);
@@ -63,20 +65,24 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
       ) : (
         <div className="mt-4 rounded-xl bg-[#fdf3e6] p-3 text-center">
           <p className="text-xs font-bold text-[#8a6a52]">Checkout em liberação</p>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}?subject=Quero%20assinar%20o%20Detector%20(${encodeURIComponent(plan.name)})`}
-            className="mt-1 inline-block text-xs font-extrabold text-[#0b7d61] underline decoration-2 underline-offset-2"
-          >
-            Falar com o suporte
-          </a>
+          {/* Sem e-mail visível: abre o modal de suporte */}
+          <div className="mt-1">
+            <SupportButton variant="link" label="Falar com o suporte" />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-export function PlansSection({ compact = false }: { compact?: boolean }) {
-  const plans = getPlans();
+export function PlansSection({
+  compact = false,
+  priceOverrides = {},
+}: {
+  compact?: boolean;
+  priceOverrides?: PlanPriceOverrides;
+}) {
+  const plans = getPlans(priceOverrides);
   return (
     <div className="w-full">
       <div className="grid gap-4 sm:grid-cols-2">

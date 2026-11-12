@@ -2,8 +2,17 @@
 // Os links de checkout vêm da Cakto e são configurados como variáveis de
 // ambiente públicas (NEXT_PUBLIC_CAKTO_CHECKOUT_PASS30 / _LIFETIME).
 // Enquanto não estiverem configurados, o botão mostra estado "em liberação".
+//
+// Os preços exibidos podem ser sobrescritos pelo painel admin (SiteConfig),
+// via prop `priceOverrides` que a landing/bloqueio repassam.
 
 export type PlanId = "pass30" | "lifetime";
+
+export interface PlanPriceOverrides {
+  pass30?: string;
+  lifetime?: string;
+  anchor?: string;
+}
 
 export interface PlanInfo {
   id: PlanId;
@@ -17,9 +26,7 @@ export interface PlanInfo {
   checkout: string | null;
 }
 
-export const SUPPORT_EMAIL = "clodoaldosilva608@gmail.com";
-
-export function getPlans(): PlanInfo[] {
+export function getPlans(overrides: PlanPriceOverrides = {}): PlanInfo[] {
   const pass30 = process.env.NEXT_PUBLIC_CAKTO_CHECKOUT_PASS30 || null;
   const lifetime = process.env.NEXT_PUBLIC_CAKTO_CHECKOUT_LIFETIME || null;
 
@@ -27,7 +34,7 @@ export function getPlans(): PlanInfo[] {
     {
       id: "pass30",
       name: "Passe 30 dias",
-      price: "R$ 9,90",
+      price: overrides.pass30 || "R$ 9,90",
       period: "pagamento único · 30 dias de acesso",
       tagline: "Ideal para conhecer o método sem compromisso.",
       features: [
@@ -41,8 +48,8 @@ export function getPlans(): PlanInfo[] {
     {
       id: "lifetime",
       name: "Vitalício",
-      price: "R$ 29,90",
-      anchor: "R$ 49,90",
+      price: overrides.lifetime || "R$ 29,90",
+      anchor: overrides.anchor || "R$ 49,90",
       period: "pagamento único · acesso permanente",
       tagline: "Paga uma vez e usa durante toda a sua jornada de concurso.",
       highlight: true,

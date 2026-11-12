@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const db = await dbReady();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 
-    const [leadsTotal, leads7d, approved, refunded, revenue, accounts, analyses, recentLeads, recentPurchases] =
+    const [leadsTotal, leads7d, approved, refunded, revenue, accounts, analyses, recentLeads, recentPurchases, supportTotal, supportUnread] =
       await Promise.all([
         db.lead.count(),
         db.lead.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
         db.analysis.count(),
         db.lead.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
         db.purchase.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+        db.supportMessage.count(),
+        db.supportMessage.count({ where: { status: "new" } }),
       ]);
 
     return NextResponse.json({
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest) {
       },
       accounts,
       analyses,
+      support: { total: supportTotal, unread: supportUnread },
       recentLeads,
       recentPurchases,
     });

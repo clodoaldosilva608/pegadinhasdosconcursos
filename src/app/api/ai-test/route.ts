@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZai } from "@/lib/zai";
-import { requireAccess } from "@/lib/access";
-import { isLaunchFreeNow } from "@/lib/launch";
+import { requireAccessBySiteConfig } from "@/lib/gate";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -9,11 +8,9 @@ export const maxDuration = 60;
 const MAX_KEY_LENGTH = 300;
 
 export async function POST(req: NextRequest) {
-  // Lançamento: acesso grátis até 01/01/2027 (decisão pelo relógio do servidor).
-  if (!isLaunchFreeNow()) {
-    const denied = await requireAccess(req);
-    if (denied) return denied;
-  }
+  // Acesso: janela grátis de lançamento ou paywall desligado no painel.
+  const denied = await requireAccessBySiteConfig(req);
+  if (denied) return denied;
 
   try {
     const body = await req.json().catch(() => ({}));

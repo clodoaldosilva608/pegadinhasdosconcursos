@@ -2,8 +2,14 @@
 // Sessão stateless via cookie HttpOnly assinado com HMAC-SHA256
 // (mesma técnica do acesso pago, com escopo próprio "admin").
 //
-// Credenciais: env ADMIN_EMAIL / ADMIN_PASSWORD — com os valores informados
-// pelo dono do produto como fallback (trocar/rotacionar depois).
+// Credenciais (NUNCA no código-fonte — somente variáveis de ambiente):
+// - ADMIN_PASSWORD_HASH (preferencial): hash scrypt em
+//   `scrypt:N:r:p:saltHex:hashHex` (gerado por scripts/hash_admin_password.mjs;
+//   sem "$", à prova da expansão de variáveis do dotenv). O formato antigo
+//   `scrypt$N$r$p$saltB64$hashB64` também é aceito;
+// - ADMIN_PASSWORD (alternativa): senha direta em env (menos seguro);
+// - ADMIN_EMAIL: e-mail do administrador.
+// Se nenhuma senha estiver configurada, o login é NEGADO (log de erro).
 
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -16,18 +22,57 @@ export function adminEmail(): string {
   return (process.env.ADMIN_EMAIL || "clodoaldo608@gmail.com").toLowerCase();
 }
 
-function adminPassword(): string {
-  return process.env.ADMIN_PASSWORD || "Silva88677488";
+function adminPasswordHash(): string | null {
+  const hash = process.env.ADMIN_PASSWORD_HASH;
+  return hash && (hash.startsWith("scrypt:") || hash.startsWith("scrypt$")) ? hash : null;
+}
+
+function adminPassword(): string | null {
+  return process.env.ADMIN_PASSWORD || null;
 }
 
 function adminSecret(): string {
   return process.env.ADMIN_SECRET || process.env.ACCESS_TOKEN_SECRET || "dp-dev-admin-secret";
 }
 
+function verifyScrypt(password: string, stored: string): boolean {
+  // Formato novo: scrypt:N:r:p:saltHex:hashHex  (sem "$", à prova de dotenv)
+  // Formato antigo: scrypt$N$r$p$saltB64$hashB64
+  const sep = stored.includes(":") ? ":" : "$";
+  const parts = stored.split(sep);
+  if (parts.length !== 6) return false;
+  const [, Ns, rs, ps, saltPart, hashPart] = parts;
+  const N = Number(Ns);
+  const r = Number(rs);
+  const p = Number(ps);
+  if (!Number.isFinite(N) || !Number.isFinite(r) || !Number.isFinite(p)) return false;
+  let salt: Buffer;
+  let expected: Buffer;
+  try {
+    salt = Buffer.from(saltPart, sep === ":" ? "hex" : "base64");
+    expected = Buffer.from(hashPart, sep === ":" ? "hex" : "base64");
+  } catch {
+    return false;
+  }
+  if (salt.length === 0 || expected.length === 0) return false;
+  const derived = crypto.scryptSync(password, salt, expected.length, { N, r, p });
+  return derived.length === expected.length && crypto.timingSafeEqual(derived, expected);
+}
+
 export function checkCredentials(email: string, password: string): boolean {
   const okEmail = safeEqual(email.trim().toLowerCase(), adminEmail());
-  const okPass = safeEqual(password, adminPassword());
-  return okEmail && okPass;
+  if (!okEmail) return false;
+
+  const storedHash = adminPasswordHash();
+  if (storedHash) return verifyScrypt(password, storedHash);
+
+  const plain = adminPassword();
+  if (plain) return safeEqual(password, plain);
+
+  console.error(
+    "[admin] Nenhuma senha configurada: defina ADMIN_PASSWORD_HASH ou ADMIN_PASSWORD nas variáveis de ambiente."
+  );
+  return false;
 }
 
 interface AdminPayload {

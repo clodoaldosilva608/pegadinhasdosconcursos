@@ -11,6 +11,7 @@ import {
   BarChart3,
   Download,
   KeyRound,
+  LifeBuoy,
   Loader2,
   LogIn,
   LogOut,
@@ -19,6 +20,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   Trash2,
   Undo2,
   UserRoundCog,
@@ -26,6 +28,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PLAN_LABELS } from "@/lib/plans";
+import { SupportSection } from "@/components/admin/SupportSection";
+import { SiteSection } from "@/components/admin/SiteSection";
 
 // ===== tipos =====
 
@@ -65,12 +69,13 @@ interface Overview {
   purchases: { approved: number; refunded: number; revenueCents: number };
   accounts: number;
   analyses: number;
+  support: { total: number; unread: number };
   recentLeads: Lead[];
   recentPurchases: Purchase[];
 }
 
 type Session = "loading" | "anon" | "ok";
-type Tab = "overview" | "leads" | "purchases" | "accounts";
+type Tab = "overview" | "purchases" | "leads" | "support" | "site" | "accounts";
 
 const fmtBRL = (cents: number | null) =>
   cents === null ? "—" : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -243,6 +248,7 @@ function OverviewSection() {
         <KpiCard icon={BadgeDollarSign} label="Compras aprovadas" value={String(data.purchases.approved)} hint={`${data.purchases.refunded} reembolsadas`} />
         <KpiCard icon={BarChart3} label="Receita (Pix)" value={fmtBRL(data.purchases.revenueCents)} hint="Compras aprovadas via Cakto" />
         <KpiCard icon={MailCheck} label="Análises armazenadas" value={String(data.analyses)} hint={`${data.accounts} conta(s) interna(s)`} />
+        <KpiCard icon={LifeBuoy} label="Suporte" value={String(data.support?.total ?? 0)} hint={`${data.support?.unread ?? 0} não lida(s)`} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -599,6 +605,8 @@ function PurchasesSection() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [unlockOpen, setUnlockOpen] = useState(false);
+  const [editing, setEditing] = useState<Purchase | null>(null);
+  const [deleting, setDeleting] = useState<Purchase | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -723,23 +731,43 @@ function PurchasesSection() {
                   <td className="px-3 py-2.5 text-xs font-semibold text-[#8a7462]">{purchase.refId ?? "—"}</td>
                   <td className="px-3 py-2.5 text-xs font-semibold text-[#6f5b47]">{fmtDate(purchase.createdAt)}</td>
                   <td className="px-3 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => void toggleStatus(purchase)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#e7d9c4] bg-white px-2.5 py-1.5 text-[11px] font-extrabold text-[#6f5b47] transition hover:bg-[#fdf9f2]"
-                    >
-                      {purchase.status === "approved" ? (
-                        <>
-                          <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
-                          Revogar
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                          Reativar
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void toggleStatus(purchase)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#e7d9c4] bg-white px-2.5 py-1.5 text-[11px] font-extrabold text-[#6f5b47] transition hover:bg-[#fdf9f2]"
+                      >
+                        {purchase.status === "approved" ? (
+                          <>
+                            <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            Revogar
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                            Reativar
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(purchase)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e7d9c4] bg-white text-[#6f5b47] transition hover:bg-[#fdf9f2]"
+                        aria-label={`Editar conta de ${purchase.email}`}
+                        title="Editar conta (plano, e-mail, status, valor)"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(purchase)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#f2d9c8] bg-white text-[#c2472f] transition hover:bg-[#fdeeEA]"
+                        aria-label={`Excluir conta de ${purchase.email}`}
+                        title="Excluir registro"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -770,6 +798,158 @@ function PurchasesSection() {
           }}
         />
       )}
+
+      {editing && (
+        <EditPurchaseDialog
+          purchase={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void load();
+          }}
+        />
+      )}
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="dp-card w-full max-w-md rounded-3xl p-5">
+            <h3 className="text-base font-extrabold dp-text-ink">Excluir conta?</h3>
+            <p className="mt-1 text-xs font-semibold text-[#6f5b47]">
+              {deleting.email} · {PLAN_LABELS[deleting.plan] ?? deleting.plan}. Isso remove o
+              registro do banco. Atenção: se o objetivo é BLOQUEAR o acesso, use “Revogar” — é o
+              registro reembolsado que nega os tokens deste e-mail.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleting(null)} className={btnGhost}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await fetch(`/api/admin/purchases/${deleting.id}`, { method: "DELETE" });
+                  if (res.ok) {
+                    toast({ title: "Registro excluído", description: deleting.email });
+                    setDeleting(null);
+                    void load();
+                  } else {
+                    toast({ title: "Erro ao excluir", description: "Tente novamente." });
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#e25744] px-4 py-2 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2472f]"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditPurchaseDialog({
+  purchase,
+  onClose,
+  onSaved,
+}: {
+  purchase: Purchase;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [email, setEmail] = useState(purchase.email);
+  const [plan, setPlan] = useState(purchase.plan === "pass30" ? "pass30" : "lifetime");
+  const [status, setStatus] = useState(purchase.status === "refunded" ? "refunded" : "approved");
+  const [amount, setAmount] = useState(
+    purchase.amountCents !== null ? (purchase.amountCents / 100).toFixed(2).replace(".", ",") : ""
+  );
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const parsed = amount.trim()
+        ? Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100)
+        : null;
+      const res = await fetch(`/api/admin/purchases/${purchase.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          plan,
+          status,
+          ...(parsed !== null && Number.isFinite(parsed) ? { amountCents: parsed } : {}),
+        }),
+      });
+      const data = (await res.json()) as { ok: boolean; message?: string };
+      if (res.ok && data.ok) {
+        toast({ title: "Conta atualizada", description: `${email} · ${PLAN_LABELS[plan] ?? plan}` });
+        onSaved();
+      } else {
+        toast({ title: "Erro ao salvar", description: data.message ?? "Verifique os dados." });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+      <div className="dp-card w-full max-w-md rounded-3xl p-5">
+        <h3 className="text-base font-extrabold dp-text-ink">Editar conta</h3>
+        <p className="mt-1 text-xs font-semibold text-[#6f5b47]">
+          Altere o tipo de plano, o e-mail, o status ou o valor. Trocar plano/e-mail mescla os
+          registros em uma única conta.
+        </p>
+        <div className="mt-3 flex flex-col gap-2.5">
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="E-mail do usuário"
+            aria-label="E-mail do usuário"
+            className={inputCls}
+          />
+          <div className="grid grid-cols-2 gap-2.5">
+            <select
+              value={plan}
+              onChange={(event) => setPlan(event.target.value === "pass30" ? "pass30" : "lifetime")}
+              aria-label="Tipo de plano"
+              className="rounded-xl border border-[#e7d9c4] bg-white/90 px-3 py-2.5 text-sm font-bold text-[#233028] focus:border-[#0e9b78] focus:outline-none"
+            >
+              <option value="lifetime">Vitalício</option>
+              <option value="pass30">Passe 30 dias</option>
+            </select>
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value === "refunded" ? "refunded" : "approved")}
+              aria-label="Status do acesso"
+              className="rounded-xl border border-[#e7d9c4] bg-white/90 px-3 py-2.5 text-sm font-bold text-[#233028] focus:border-[#0e9b78] focus:outline-none"
+            >
+              <option value="approved">Aprovado (acesso ativo)</option>
+              <option value="refunded">Revogado (bloqueado)</option>
+            </select>
+          </div>
+          <input
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="Valor pago em R$ (ex.: 29,90)"
+            aria-label="Valor pago"
+            inputMode="decimal"
+            className={inputCls}
+          />
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={btnGhost}>
+            Cancelar
+          </button>
+          <button type="button" onClick={() => void save()} disabled={saving || !email.trim()} className={btnPrimary}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {saving ? "Salvando…" : "Salvar conta"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -803,9 +983,10 @@ function UnlockDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
       <div className="dp-card w-full max-w-md rounded-3xl p-5">
-        <h3 className="text-base font-extrabold dp-text-ink">Liberar acesso manual</h3>
+        <h3 className="text-base font-extrabold dp-text-ink">Criar/liberar acesso</h3>
         <p className="mt-1 text-xs font-semibold text-[#6f5b47]">
-          Use quando o webhook da Cakto falhar e o usuário comprovar o pagamento por outro canal.
+          Cria a conta do usuário (ou libera quando o webhook da Cakto falhar). O token gerado
+          vale para o aparelho em que for colado.
         </p>
         <div className="mt-3 flex flex-col gap-2.5">
           <input
@@ -988,9 +1169,11 @@ function AccountsSection() {
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof Users }> = [
   { id: "overview", label: "Visão geral", icon: BarChart3 },
+  { id: "purchases", label: "Usuários & planos", icon: BadgeDollarSign },
   { id: "leads", label: "Leads", icon: Users },
-  { id: "purchases", label: "Compras", icon: BadgeDollarSign },
-  { id: "accounts", label: "Contas", icon: UserRoundCog },
+  { id: "support", label: "Suporte", icon: LifeBuoy },
+  { id: "site", label: "Site", icon: SlidersHorizontal },
+  { id: "accounts", label: "Conta interna", icon: UserRoundCog },
 ];
 
 export function AdminApp() {
@@ -1089,6 +1272,8 @@ export function AdminApp() {
           {tab === "overview" && <OverviewSection />}
           {tab === "leads" && <LeadsSection />}
           {tab === "purchases" && <PurchasesSection />}
+          {tab === "support" && <SupportSection />}
+          {tab === "site" && <SiteSection />}
           {tab === "accounts" && <AccountsSection />}
         </div>
       </div>

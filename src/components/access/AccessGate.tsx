@@ -12,8 +12,8 @@ import { InstallBanner } from "@/components/detector/InstallBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
 import { LeadForm } from "@/components/launch/LeadForm";
 import { LaunchStrip } from "@/components/launch/LaunchStrip";
+import { SupportButton } from "@/components/landing/SupportButton";
 import { LAUNCH_DEADLINE_LABEL, LAUNCH_FREE_UNTIL_ISO, isLaunchFreeNow } from "@/lib/launch";
-import { SUPPORT_EMAIL } from "@/lib/plans";
 import {
   clearStoredAccess,
   getStoredAccess,
@@ -130,20 +130,21 @@ function VerifyBox({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void 
         </p>
       )}
 
-      <p className="mt-2 text-[11px] font-semibold text-[#a08a77]">
-        Problemas? Suporte:{" "}
-        <a
-          href={`mailto:${SUPPORT_EMAIL}?subject=Libera%C3%A7%C3%A3o%20de%20acesso%20Detector`}
-          className="font-extrabold text-[#0b7d61] underline decoration-2 underline-offset-2"
-        >
-          {SUPPORT_EMAIL}
-        </a>
+      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[#a08a77]">
+        Problemas?
+        <SupportButton variant="link" label="Falar com o suporte" />
       </p>
     </div>
   );
 }
 
-function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void }) {
+function LockedView({
+  onUnlocked,
+  deadlineLabel,
+}: {
+  onUnlocked: (access: StoredAccess) => void;
+  deadlineLabel: string;
+}) {
   return (
     <main className="dp-app-bg min-h-screen w-full">
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-4 pb-10 pt-6 sm:px-6">
@@ -177,7 +178,7 @@ function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void
           </span>
           <h1 className="mt-3 text-xl font-black dp-text-ink">Conteúdo exclusivo</h1>
           <p className="mx-auto mt-1.5 max-w-sm text-sm font-semibold text-[#6f5b47] leading-relaxed">
-            O período de lançamento gratuito (encerrado em {LAUNCH_DEADLINE_LABEL}) acabou. O
+            O período de lançamento gratuito (encerrado em {deadlineLabel}) acabou. O
             Detector completo — análise de questões, guia de distratores e vocabulário-armadilha
             — é liberado com o pagamento do Pix. Escolha um plano abaixo ou, se já pagou, use o
             “Já paguei” com o e-mail da compra.
@@ -230,6 +231,8 @@ function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<GateState>("checking");
   const [launchFree, setLaunchFree] = useState(false);
+  const [freeUntil, setFreeUntil] = useState(LAUNCH_FREE_UNTIL_ISO);
+  const [deadlineLabel, setDeadlineLabel] = useState(LAUNCH_DEADLINE_LABEL);
 
   useEffect(() => {
     let cancelled = false;
@@ -237,13 +240,20 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
       // Um microtask para não setar estado sincronamente no corpo do efeito.
       await Promise.resolve();
       if (cancelled) return;
-      // Lançamento: decisão pelo relógio do servidor; fallback no relógio local.
+      // Lançamento/paywall: decisão pelo servidor (config do painel); fallback no relógio local.
       let free = false;
       try {
         const res = await fetch("/api/launch", { cache: "no-store" });
         if (res.ok) {
-          const data = (await res.json()) as { launchFree?: boolean };
-          free = data.launchFree === true;
+          const data = (await res.json()) as {
+            launchFree?: boolean;
+            freeUntil?: string;
+            freeUntilLabel?: string;
+            paywallEnabled?: boolean;
+          };
+          free = data.launchFree === true || data.paywallEnabled === false;
+          if (data.freeUntil) setFreeUntil(data.freeUntil);
+          if (data.freeUntilLabel) setDeadlineLabel(data.freeUntilLabel);
         }
       } catch {
         free = false;
@@ -286,7 +296,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
     return (
       <>
         {children}
-        {launchFree && <LaunchStrip freeUntil={LAUNCH_FREE_UNTIL_ISO} />}
+        {launchFree && <LaunchStrip freeUntil={freeUntil} />}
       </>
     );
   }
@@ -297,6 +307,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
         setState("open");
         window.scrollTo({ top: 0 });
       }}
+      deadlineLabel={deadlineLabel}
     />
   );
 }

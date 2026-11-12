@@ -154,3 +154,77 @@ banco de produção nasce limpo por cold start (comportamento conhecido). Senha 
 admin compartilhada em chat — recomendação: trocar via env ADMIN_PASSWORD e rotacionar.
 
 **Git:** 1b550c0 (autor clodoaldosilva608@gmail.com), push origin main.
+
+## Task 14 — Suporte sem e-mail visível + admin gerencia o site inteiro + CRUD total de contas
+
+**Pedidos:** (a) o e-mail de suporte não pode ficar visível na landing — apenas o botão
+"Suporte"; (b) o painel admin deve gerenciar todas as páginas, elementos e
+funcionalidades da aplicação e também totalmente as contas/cadastros dos usuários
+(criar, editar, excluir, alterar tipo de plano etc.).
+
+**Suporte por botão (e-mail nunca na página):**
+- Model `SupportMessage` (email, name, message, status new|read|replied) + bootstrap.
+- `POST /api/support` (público, 5/10min por IP; valida e-mail/mensagem) — grava a mensagem.
+- `GET /api/support/contact` — entrega e-mail/WhatsApp de suporte SOMENTE sob demanda
+  (chamado no clique de "Prefiro falar por e-mail ou WhatsApp"); nunca no HTML/JS.
+- `SupportButton.tsx` (botão + modal: formulário com estado de sucesso + canais sob
+  demanda). Substituiu o mailto visível no rodapé da landing, no "Problemas? Suporte:"
+  do VerifyBox (AccessGate) e no fallback "Checkout em liberação" do PlansSection.
+- Painel: aba **Suporte** (caixa de entrada: busca, filtro por status, não lidas,
+  diálogo com mensagem completa, responder via mailto para o REMETENTE, marcar
+  lida/respondida, excluir) — `/api/admin/support` + `[id]`; KPI "Suporte" no overview.
+
+**Site configurável pelo painel (páginas/elementos/funcionalidades):**
+- Model `SiteConfig` (key/value) + `src/lib/siteConfig.ts`: `SITE_DEFAULTS`,
+  `getSiteConfig()` (mescla DB sobre padrões, à prova de instância fria),
+  `publicSiteConfig()` (recorte seguro — NUNCA envia support_email/paywall ao cliente),
+  `cfgBool()`, `launchState()` (data/ativação da janela + rótulo pt-BR).
+- Chaves: launch_free_enabled/_until/_countdown_enabled/_badge, paywall_enabled,
+  hero_title/_subtitle/_bullets, section_features/_steps/_leads/_plans/_faq,
+  leads_title/_subtitle, plans_pass30_price/_lifetime_price/_lifetime_anchor,
+  support_email/_whatsapp, footer_note.
+- `/` virou server component (`force-dynamic`) que injeta a config na Landing:
+  textos do hero, seções ligáveis/desligáveis, título/descrição do funil, preços
+  (override em `getPlans()`), selo de lançamento, nota do rodapé.
+- `/api/launch` agora responde launchFree/freeUntil/freeUntilLabel/countdownEnabled/
+  paywallEnabled a partir da config; `src/lib/gate.ts` (`requireAccessBySiteConfig`)
+  unifica o portão das rotas de IA (extract/analyze/ai-test): janela grátis OU
+  paywall_enabled=0 → livre. AccessGate usa freeUntil/rótulo da API (cronômetro e
+  tela de bloqueio passam a seguir a data configurada).
+- Painel: aba **Site** com 7 grupos (Lançamento & acesso, Textos, Seções visíveis,
+  Avisos, Planos, Suporte interno, Rodapé), toggles, datetime-local ↔ ISO,
+  "Salvar alterações" e "Restaurar padrões" — `/api/admin/settings` GET/PUT
+  (whitelist de chaves) com `reset: true`.
+
+**Contas dos usuários — CRUD total (aba renomeada "Usuários & planos"):**
+- `PATCH /api/admin/purchases/[id]` estendido: e-mail, PLANO (lifetime|pass30),
+  status (approved|refunded) e valor — troca de plano/e-mail mescla registros
+  (chave única (email, plan)); `DELETE /api/admin/purchases/[id]` (exclui registro;
+  UI avisa que para BLOQUEAR o acesso o correto é "Revogar").
+- UI: botões Editar/Excluir por linha, `EditPurchaseDialog` (e-mail, plano, status,
+  valor R$), confirmação de exclusão; unlock renomeado "Criar/liberar acesso".
+
+**Segurança do admin:**
+- Removida a senha em texto do código. `ADMIN_PASSWORD_HASH` (scrypt) tem
+  prioridade; `ADMIN_PASSWORD` é alternativa; sem nenhuma → login NEGADO com log.
+- Pegadinha encontrada: dotenv expande `$` em .env.local e corrompia o hash no
+  formato base64 com `$` — formato novo `scrypt:N:r:p:saltHex:hashHex` (parser
+  aceita os dois). Gerador: `scripts/hash_admin_password.mjs`.
+- Envs definidas na Vercel (production): ADMIN_EMAIL + ADMIN_PASSWORD_HASH
+  (valor puro via stdin; primeira tentativa gravou "KEY=value" e foi refeita).
+
+**Testes:** tsc/eslint limpos; dev 3111: landing 200 SEM o e-mail no HTML (0 ocorrências),
+POST /api/support ok + 400 curto, contact sob demanda, login errado 401/correto 200
+(scrypt), settings PUT refletido na landing + reset, caixa de suporte (PATCH replied,
+DELETE), unlock cria conta + token, PATCH troca plano pass30→lifetime com valor,
+DELETE conta, overview com support KPI; interruptores: paywall_enabled=0 → rotas de IA
+livres (erro do Google, não ACCESS_REQUIRED) e launch_free_enabled=0 → ACCESS_REQUIRED.
+E2E browser: modal Suporte (envio → "Mensagem enviada", e-mail oculto no DOM,
+mailto criado só após clique), admin (login, 6 abas, Site salvo refletindo na landing,
+troca de plano pelo diálogo, restaurar padrões), screenshots em scripts/e2e_*.png.
+
+**Notas:** banco de produção segue efêmero por cold start (/tmp) — configurar
+Postgres/Neon se persistência total for exigida. Recomendação mantida: rotacionar a
+senha do admin depois.
+
+**Git:** commit pós-task (autor clodoaldosilva608@gmail.com).
