@@ -3,6 +3,9 @@
 // Cronômetro regressivo do lançamento (até 01/01/2027).
 // Renderiza placeholders no SSR e acerta no cliente — sem risco de
 // mismatch de hidratação.
+//
+// Task 18: variante natalina ("christmas") — caixas vermelhas com borda e
+// números dourados, amarrando a contagem ao presente de lançamento.
 
 import { useEffect, useState } from "react";
 
@@ -32,10 +35,13 @@ export function Countdown({
   untilIso,
   onOver,
   size = "lg",
+  variant = "default",
 }: {
   untilIso: string;
   onOver?: () => void;
   size?: "lg" | "sm";
+  /** "christmas" = caixas vermelhas com dourado (temporada natalina). */
+  variant?: "default" | "christmas";
 }) {
   const untilMs = new Date(untilIso).getTime();
   const [now, setNow] = useState<number | null>(null);
@@ -83,6 +89,8 @@ export function Countdown({
     [p ? pad(p.s) : "––", "seg"],
   ];
 
+  const festive = variant === "christmas";
+
   return (
     <div
       className="flex items-stretch gap-1.5 sm:gap-2"
@@ -92,12 +100,24 @@ export function Countdown({
       {cells.map(([value, name]) => (
         <div
           key={name}
-          className={`${box} flex flex-col items-center rounded-2xl border border-[#0e9b78]/25 bg-white/80 shadow-sm`}
+          className={`${box} flex flex-col items-center rounded-2xl border shadow-sm ${
+            festive
+              ? "border-[#ffd166]/80 bg-gradient-to-b from-[#c1121f] to-[#8f0f1a]"
+              : "border-[#0e9b78]/25 bg-white/80"
+          }`}
         >
-          <span className={`${digits} font-black tabular-nums leading-none text-[#0b7d61]`}>
+          <span
+            className={`${digits} font-black tabular-nums leading-none ${
+              festive ? "text-[#ffe9a8]" : "text-[#0b7d61]"
+            }`}
+          >
             {value}
           </span>
-          <span className={`${label} mt-1 font-extrabold uppercase tracking-widest text-[#8a7462]`}>
+          <span
+            className={`${label} mt-1 font-extrabold uppercase tracking-widest ${
+              festive ? "text-[#ffd166]" : "text-[#8a7462]"
+            }`}
+          >
             {name}
           </span>
         </div>

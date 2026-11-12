@@ -89,3 +89,18 @@ model AbandonedCheckout {
   @@unique([email, plan])
   @@index([email])
 }
+
+// Uso do app por aparelho (Task 18): cada aparelho que abre o /app registra
+// uma linha — base da aba "Usuários do app" no painel (plano, aparelho,
+// visitas, 1ª/última visita). O plano/e-mail aparece quando há acesso pago
+// verificado no aparelho; sem isso, é uso gratuito do lançamento.
+model AppUser {
+  id          String   @id @default(cuid())
+  deviceId    String   @unique
+  plan        String   @default("free") // free | pass30 | lifetime
+  email       String?
+  userAgent   String?
+  visits      Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+}

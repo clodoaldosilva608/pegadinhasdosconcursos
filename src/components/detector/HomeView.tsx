@@ -5,6 +5,7 @@ import { UploadZone } from "./UploadZone";
 import { AiKeySection } from "./AiKeySection";
 import { InstallBanner } from "./InstallBanner";
 import { MiniShare } from "./MiniShare";
+import { PartnerBannerClient } from "@/components/launch/PartnerBanner";
 import type { AccountInfo } from "@/lib/types";
 
 interface HomeViewProps {
@@ -65,6 +66,9 @@ export function HomeView({
 
       {/* Divulgação: convite para amigos e redes sociais */}
       <MiniShare />
+
+      {/* Plataforma parceira (cross-promo DestravaStudy — Task 18) */}
+      <PartnerBannerClient />
 
       {/* CTA verde */}
       <section

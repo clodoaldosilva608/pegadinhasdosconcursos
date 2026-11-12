@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  Smartphone,
   Trash2,
   Undo2,
   UserRoundCog,
@@ -65,18 +66,31 @@ interface Account {
   updatedAt: string;
 }
 
+interface AppUserRow {
+  id: string;
+  deviceId: string;
+  plan: string;
+  email: string | null;
+  userAgent: string | null;
+  visits: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
 interface Overview {
   leads: { total: number; last7days: number };
   purchases: { approved: number; refunded: number; revenueCents: number };
   accounts: number;
   analyses: number;
   support: { total: number; unread: number };
+  appUsers: { total: number; last7days: number };
+  dbEphemeral: boolean;
   recentLeads: Lead[];
   recentPurchases: Purchase[];
 }
 
 type Session = "loading" | "anon" | "ok";
-type Tab = "overview" | "purchases" | "leads" | "recoveries" | "support" | "site" | "accounts";
+type Tab = "overview" | "appusers" | "purchases" | "leads" | "recoveries" | "support" | "site" | "accounts";
 
 const fmtBRL = (cents: number | null) =>
   cents === null ? "—" : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -244,7 +258,20 @@ function OverviewSection() {
 
   return (
     <div className="flex flex-col gap-4">
+      {data.dbEphemeral && (
+        <div className="rounded-2xl border border-[#f2d9a0] bg-[#fdf6dd] p-3.5" role="status">
+          <p className="text-xs font-extrabold text-[#8a6a1a]">
+            ⚠️ Banco de dados temporário neste deploy
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-[#9a7c2a] leading-snug">
+            A Vercel descarta o SQLite em /tmp quando o servidor hiberna — leads, compras,
+            suporte e usuários do app podem zerar entre acessos distantes. Para histórico
+            permanente, migre para um banco gerenciado (Neon/Turso/Vercel Postgres).
+          </p>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard icon={Smartphone} label="Usuários do app" value={String(data.appUsers?.total ?? 0)} hint={`+${data.appUsers?.last7days ?? 0} novos nos últimos 7 dias`} />
         <KpiCard icon={Users} label="Leads" value={String(data.leads.total)} hint={`+${data.leads.last7days} nos últimos 7 dias`} />
         <KpiCard icon={BadgeDollarSign} label="Compras aprovadas" value={String(data.purchases.approved)} hint={`${data.purchases.refunded} reembolsadas`} />
         <KpiCard icon={BarChart3} label="Receita (Pix)" value={fmtBRL(data.purchases.revenueCents)} hint="Compras aprovadas via Cakto" />
@@ -1166,10 +1193,319 @@ function AccountsSection() {
   );
 }
 
+// ===== usuários do app (Task 18) =====
+
+const APP_PLAN_LABELS: Record<string, string> = {
+  free: "GRÁTIS LANÇAMENTO",
+  pass30: "Passe 30 dias",
+  lifetime: "Vitalício",
+};
+
+function deviceSummary(ua: string | null): string {
+  if (!ua) return "Aparelho desconhecido";
+  const u = ua.toLowerCase();
+  const os = u.includes("iphone") || u.includes("ipad")
+    ? "iOS"
+    : u.includes("android")
+      ? "Android"
+      : u.includes("windows")
+        ? "Windows"
+        : u.includes("mac os") || u.includes("macintosh")
+          ? "Mac"
+          : "Outro";
+  const browser = u.includes("edg/")
+    ? "Edge"
+    : u.includes("chrome/") || u.includes("crios")
+      ? "Chrome"
+      : u.includes("firefox")
+        ? "Firefox"
+        : u.includes("safari")
+          ? "Safari"
+          : "Navegador";
+  return `${os} · ${browser}`;
+}
+
+function AppUsersSection() {
+  const { toast } = useToast();
+  const [items, setItems] = useState<AppUserRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<AppUserRow | null>(null);
+  const [deleting, setDeleting] = useState<AppUserRow | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      if (q.trim()) params.set("q", q.trim());
+      const res = await fetch(`/api/admin/appusers?${params.toString()}`, { cache: "no-store" });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const json = (await res.json()) as Page<AppUserRow>;
+      if (json.ok) {
+        setItems(json.items);
+        setTotal(json.total);
+        setPages(Math.max(1, Math.ceil(json.total / json.pageSize)));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [page, q]);
+
+  useEffect(() => {
+    // Adiado: evita setState síncrono no corpo do efeito (react-hooks).
+    const t = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(t);
+  }, [load]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#c4ac93]" aria-hidden="true" />
+          <input
+            value={q}
+            onChange={(event) => {
+              setPage(1);
+              setQ(event.target.value);
+            }}
+            placeholder="Buscar por e-mail, aparelho ou ID…"
+            aria-label="Buscar usuários do app"
+            className={`${inputCls} pl-9`}
+          />
+        </div>
+      </div>
+
+      <p className="text-xs font-semibold text-[#6f5b47]">
+        Cada aparelho que abre o app aparece aqui automaticamente — com o plano quando há acesso
+        pago verificado neste aparelho (restante: uso gratuito do lançamento).
+      </p>
+
+      <div className="dp-card overflow-hidden rounded-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#f0e2cf] bg-[#fdf9f2]">
+                {["E-mail", "Plano", "Aparelho", "Visitas", "1ª visita", "Última visita", "Ações"].map((h) => (
+                  <th key={h} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#8a7462]">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f0e2cf]">
+              {loading && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center">
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#0e9b78]" aria-hidden="true" />
+                  </td>
+                </tr>
+              )}
+              {!loading && items.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center text-xs font-bold text-[#a08a77]">
+                    Nenhum usuário do app ainda — abre o /app em um aparelho para registrar.
+                  </td>
+                </tr>
+              )}
+              {items.map((user) => (
+                <tr key={user.id} className="hover:bg-[#fdf9f2]">
+                  <td className="px-3 py-2.5 font-extrabold text-[#233028]">{user.email ?? "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                        user.plan === "free"
+                          ? "bg-[#f9ddc4] text-[#9a5b23]"
+                          : user.plan === "lifetime"
+                            ? "bg-[#e0f3ed] text-[#0b7d61]"
+                            : "bg-[#fdeeEA] text-[#c2472f]"
+                      }`}
+                    >
+                      {APP_PLAN_LABELS[user.plan] ?? user.plan}
+                    </span>
+                  </td>
+                  <td className="max-w-[180px] px-3 py-2.5">
+                    <p className="truncate text-xs font-bold text-[#6f5b47]" title={user.userAgent ?? undefined}>
+                      {deviceSummary(user.userAgent)}
+                    </p>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs font-black tabular-nums text-[#233028]">{user.visits}</td>
+                  <td className="px-3 py-2.5 text-xs font-semibold text-[#6f5b47]">{fmtDate(user.firstSeenAt)}</td>
+                  <td className="px-3 py-2.5 text-xs font-semibold text-[#6f5b47]">{fmtDate(user.lastSeenAt)}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(user)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e7d9c4] bg-white text-[#6f5b47] transition hover:bg-[#fdf9f2]"
+                        aria-label={`Editar aparelho ${user.email ?? user.deviceId}`}
+                        title="Corrigir plano/e-mail do aparelho"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(user)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#f2d9c8] bg-white text-[#c2472f] transition hover:bg-[#fdeeEA]"
+                        aria-label={`Excluir aparelho ${user.email ?? user.deviceId}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-[#f0e2cf] bg-[#fdf9f2] px-3 py-2">
+          <p className="text-[11px] font-bold text-[#8a7462]">
+            {total} aparelho(s) · página {page} de {pages}
+          </p>
+          <div className="flex gap-1.5">
+            <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className={btnGhost}>
+              Anterior
+            </button>
+            <button type="button" disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className={btnGhost}>
+              Próxima
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {editing && (
+        <EditAppUserDialog
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void load();
+          }}
+        />
+      )}
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="dp-card w-full max-w-sm rounded-3xl p-5">
+            <h3 className="text-base font-extrabold dp-text-ink">Excluir aparelho?</h3>
+            <p className="mt-1 text-xs font-semibold text-[#6f5b47]">
+              {deleting.email ?? deviceSummary(deleting.userAgent)} sai da lista e do KPI. A ação é
+              definitiva (o aparelho volta a contar como novo se abrir o app de novo).
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleting(null)} className={btnGhost}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await fetch(`/api/admin/appusers/${deleting.id}`, { method: "DELETE" });
+                  if (res.ok) {
+                    toast({ title: "Aparelho removido" });
+                    setDeleting(null);
+                    void load();
+                  } else {
+                    toast({ title: "Erro ao excluir", description: "Tente novamente." });
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#e25744] px-4 py-2 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2472f]"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditAppUserDialog({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AppUserRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [email, setEmail] = useState(user.email ?? "");
+  const [plan, setPlan] = useState(user.plan);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/appusers/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, plan }),
+      });
+      const data = (await res.json()) as { ok: boolean };
+      if (res.ok && data.ok) {
+        toast({ title: "Aparelho atualizado", description: APP_PLAN_LABELS[plan] ?? plan });
+        onSaved();
+      } else {
+        toast({ title: "Erro ao salvar", description: "Tente novamente." });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+      <div className="dp-card w-full max-w-md rounded-3xl p-5">
+        <h3 className="text-base font-extrabold dp-text-ink">Editar aparelho</h3>
+        <p className="mt-1 text-xs font-semibold text-[#6f5b47]">
+          Corrija o plano/e-mail registrado para este aparelho (ex.: presente liberado manualmente).
+        </p>
+        <div className="mt-3 flex flex-col gap-2.5">
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="E-mail associado (opcional)"
+            aria-label="E-mail associado ao aparelho"
+            className={inputCls}
+          />
+          <select
+            value={plan}
+            onChange={(event) => setPlan(event.target.value)}
+            aria-label="Plano do aparelho"
+            className="rounded-xl border border-[#e7d9c4] bg-white/90 px-3 py-2.5 text-sm font-bold text-[#233028] focus:border-[#0e9b78] focus:outline-none"
+          >
+            <option value="free">Grátis (lançamento)</option>
+            <option value="pass30">Passe 30 dias</option>
+            <option value="lifetime">Vitalício</option>
+          </select>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={btnGhost}>
+            Cancelar
+          </button>
+          <button type="button" onClick={() => void save()} disabled={saving} className={btnPrimary}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {saving ? "Salvando…" : "Salvar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ===== shell =====
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof Users }> = [
   { id: "overview", label: "Visão geral", icon: BarChart3 },
+  { id: "appusers", label: "Usuários do app", icon: Smartphone },
   { id: "purchases", label: "Usuários & planos", icon: BadgeDollarSign },
   { id: "leads", label: "Leads", icon: Users },
   { id: "recoveries", label: "Recuperação", icon: Undo2 },
@@ -1272,6 +1608,7 @@ export function AdminApp() {
 
         <div className="mt-4">
           {tab === "overview" && <OverviewSection />}
+          {tab === "appusers" && <AppUsersSection />}
           {tab === "leads" && <LeadsSection />}
           {tab === "purchases" && <PurchasesSection />}
           {tab === "recoveries" && <RecoveriesSection />}

@@ -234,6 +234,83 @@ export function SiteSection() {
           />
         </Group>
 
+        <Group title="Natal (temporada 01/11 → 06/01)">
+          <Toggle
+            label="Temporada natalina (contagem temática + presente)"
+            hint="Selo “Presente de Natal”, botão Presentear e contagem vermelho/dourado. Desliga sozinha em 07/01 (Dia de Reis já passado)."
+            checked={isOn("christmas_season_enabled")}
+            onChange={(next) => toggle("christmas_season_enabled", next)}
+          />
+          <Field label="Neve em toda a página" hint="Auto = só em dezembro. On = sempre. Off = nunca.">
+            <select
+              value={values.snowfall_page ?? "auto"}
+              onChange={(event) => set("snowfall_page", event.target.value)}
+              aria-label="Neve em toda a página"
+              className="rounded-xl border border-[#e7d9c4] bg-white/90 px-3 py-2.5 text-sm font-bold text-[#233028] focus:border-[#0e9b78] focus:outline-none"
+            >
+              <option value="auto">Auto (só em dezembro)</option>
+              <option value="on">Sempre ligada</option>
+              <option value="off">Desligada</option>
+            </select>
+          </Field>
+          <p className="text-[11px] font-semibold text-[#a08a77]">
+            A decoração da faixa “100% grátis” (pisca-pisca e Papai Noel) continua no interruptor
+            “Decoração natalina” do grupo Lançamento & acesso.
+          </p>
+        </Group>
+
+        <Group title="Plataforma parceira (banner DestravaStudy)">
+          <Toggle
+            label="Banner parceiro na landing e no app"
+            hint="Cross-promo com logomarca, selo “Plataforma parceira” e botão pulsando."
+            checked={isOn("partner_banner_enabled")}
+            onChange={(next) => toggle("partner_banner_enabled", next)}
+          />
+          <Field label="Link do banner" hint="Abre em nova aba.">
+            <input
+              value={values.partner_banner_url ?? ""}
+              onChange={(event) => set("partner_banner_url", event.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="URL da logomarca" hint="Imagem quadrada (PNG/SVG). Padrão: /destrava-logo.svg.">
+            <input
+              value={values.partner_banner_logo ?? ""}
+              onChange={(event) => set("partner_banner_logo", event.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Selo (etiqueta dourada)">
+            <input
+              value={values.partner_banner_label ?? ""}
+              onChange={(event) => set("partner_banner_label", event.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Nome da plataforma">
+            <input
+              value={values.partner_banner_title ?? ""}
+              onChange={(event) => set("partner_banner_title", event.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Descrição curta">
+            <textarea
+              value={values.partner_banner_text ?? ""}
+              onChange={(event) => set("partner_banner_text", event.target.value)}
+              rows={2}
+              className={`${inputCls} resize-none`}
+            />
+          </Field>
+          <Field label="Texto do botão">
+            <input
+              value={values.partner_banner_cta ?? ""}
+              onChange={(event) => set("partner_banner_cta", event.target.value)}
+              className={inputCls}
+            />
+          </Field>
+        </Group>
+
         <Group title="Textos da página inicial">
           <Field label="Título principal (hero)">
             <input value={values.hero_title ?? ""} onChange={(event) => set("hero_title", event.target.value)} className={inputCls} />

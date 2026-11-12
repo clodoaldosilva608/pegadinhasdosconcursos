@@ -13,7 +13,9 @@ import { InstallBanner } from "@/components/detector/InstallBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
 import { LeadForm } from "@/components/launch/LeadForm";
 import { LaunchStrip } from "@/components/launch/LaunchStrip";
+import { SnowfallOverlay } from "@/components/launch/SnowfallOverlay";
 import { SupportButton } from "@/components/landing/SupportButton";
+import { trackAppOpen } from "@/lib/device";
 import { LAUNCH_DEADLINE_LABEL, LAUNCH_FREE_UNTIL_ISO, isLaunchFreeNow } from "@/lib/launch";
 import {
   clearStoredAccess,
@@ -143,10 +145,13 @@ function LockedView({
   onUnlocked,
   deadlineLabel,
   recoveryEnabled,
+  festive,
 }: {
   onUnlocked: (access: StoredAccess) => void;
   deadlineLabel: string;
   recoveryEnabled: boolean;
+  /** Temporada natalina: selo/botão "Presente de Natal" nos planos. */
+  festive: boolean;
 }) {
   return (
     <main className="dp-app-bg min-h-screen w-full">
@@ -197,7 +202,7 @@ function LockedView({
         </div>
 
         <div className="mt-4">
-          <PlansSection compact />
+          <PlansSection compact festive={festive} />
         </div>
 
         <div className="mt-4">
@@ -241,6 +246,8 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   const [freeUntil, setFreeUntil] = useState(LAUNCH_FREE_UNTIL_ISO);
   const [deadlineLabel, setDeadlineLabel] = useState(LAUNCH_DEADLINE_LABEL);
   const [recoveryEnabled, setRecoveryEnabled] = useState(true);
+  const [festive, setFestive] = useState(false);
+  const [snowActive, setSnowActive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,6 +255,8 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
       // Um microtask para não setar estado sincronamente no corpo do efeito.
       await Promise.resolve();
       if (cancelled) return;
+      // Task 18: cada aparelho que abre o app aparece no painel (Usuários do app).
+      trackAppOpen();
       // Lançamento/paywall: decisão pelo servidor (config do painel); fallback no relógio local.
       let free = false;
       try {
@@ -259,6 +268,8 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
             freeUntilLabel?: string;
             paywallEnabled?: boolean;
             recoveryBannerEnabled?: boolean;
+            christmasSeason?: boolean;
+            snowfallActive?: boolean;
           };
           free = data.launchFree === true || data.paywallEnabled === false;
           if (data.freeUntil) setFreeUntil(data.freeUntil);
@@ -266,6 +277,9 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
           if (typeof data.recoveryBannerEnabled === "boolean") {
             setRecoveryEnabled(data.recoveryBannerEnabled);
           }
+          // Task 18 — Natal + neve (sempre decidido no servidor)
+          if (typeof data.christmasSeason === "boolean") setFestive(data.christmasSeason);
+          if (typeof data.snowfallActive === "boolean") setSnowActive(data.snowfallActive);
         }
       } catch {
         free = false;
@@ -307,6 +321,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   if (state === "open") {
     return (
       <>
+        {snowActive && <SnowfallOverlay />}
         {children}
         {launchFree && <LaunchStrip freeUntil={freeUntil} />}
       </>
@@ -314,14 +329,18 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <LockedView
-      onUnlocked={() => {
-        setState("open");
-        window.scrollTo({ top: 0 });
-      }}
-      deadlineLabel={deadlineLabel}
-      recoveryEnabled={recoveryEnabled}
-    />
+    <>
+      {snowActive && <SnowfallOverlay />}
+      <LockedView
+        onUnlocked={() => {
+          setState("open");
+          window.scrollTo({ top: 0 });
+        }}
+        deadlineLabel={deadlineLabel}
+        recoveryEnabled={recoveryEnabled}
+        festive={festive}
+      />
+    </>
   );
 }
 

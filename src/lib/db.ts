@@ -112,6 +112,21 @@ async function createSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "AbandonedCheckout_email_idx" ON "AbandonedCheckout"("email")`
   );
   await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "AppUser" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "deviceId" TEXT NOT NULL,
+      "plan" TEXT NOT NULL DEFAULT 'free',
+      "email" TEXT,
+      "userAgent" TEXT,
+      "visits" INTEGER NOT NULL DEFAULT 1,
+      "firstSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "lastSeenAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "AppUser_deviceId_key" ON "AppUser"("deviceId")`
+  );
+  await db.$executeRawUnsafe(
     `INSERT OR IGNORE INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
      VALUES ('internal', 'Conta interna', 988, 1, ?)`,
     Date.now()

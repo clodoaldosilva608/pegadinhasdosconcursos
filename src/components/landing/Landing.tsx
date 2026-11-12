@@ -30,8 +30,10 @@ import { ShareCard } from "@/components/pwa/ShareCard";
 import { LeadForm } from "@/components/launch/LeadForm";
 import { Countdown } from "@/components/launch/Countdown";
 import { ChristmasFreeBanner } from "@/components/launch/ChristmasFreeBanner";
+import { SnowfallOverlay } from "@/components/launch/SnowfallOverlay";
+import { PartnerBanner } from "@/components/launch/PartnerBanner";
 import { SupportButton } from "@/components/landing/SupportButton";
-import type { PublicSiteConfig } from "@/lib/siteConfig";
+import type { PartnerConfig, PublicSiteConfig } from "@/lib/siteConfig";
 
 const NAV = [
   { href: "#o-que-e", label: "O que é" },
@@ -145,10 +147,19 @@ export function Landing({
   cfg,
   launchFree,
   freeUntilIso,
+  festive = false,
+  snowActive = false,
+  partner,
 }: {
   cfg: PublicSiteConfig;
   launchFree: boolean;
   freeUntilIso: string;
+  /** Temporada natalina (01/11 → 06/01): contagem temática + presente. */
+  festive?: boolean;
+  /** Neve em toda a página (painel: auto = só dezembro / on / off). */
+  snowActive?: boolean;
+  /** Banner da plataforma parceira (cross-promo). */
+  partner?: PartnerConfig;
 }) {
   const on = (key: string) => (cfg[key] ?? "1") !== "0";
   const heroTitle = cfg.hero_title ?? "";
@@ -166,6 +177,8 @@ export function Landing({
 
   return (
     <main className="dp-app-bg min-h-screen w-full">
+      {/* Neve em toda a página (Task 18 — painel: auto/on/off) */}
+      {snowActive && <SnowfallOverlay />}
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/40 bg-[#fdf3e6]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -229,16 +242,29 @@ export function Landing({
               <InstallAndShare />
             </div>
             {launchFree && countdownOn && (
-              <div className="mt-5 inline-block rounded-2xl border border-[#0e9b78]/25 bg-[#e0f3ed]/70 px-4 py-3">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#0b7d61]">
-                  O acesso grátis termina em
+              <div
+                className={`mt-5 inline-block rounded-2xl border px-4 py-3 ${
+                  festive
+                    ? "border-[#ffd166]/70 bg-gradient-to-br from-[#fff6e5] to-[#ffeccb]"
+                    : "border-[#0e9b78]/25 bg-[#e0f3ed]/70"
+                }`}
+              >
+                <p
+                  className={`text-[10px] font-extrabold uppercase tracking-widest ${
+                    festive ? "text-[#c1121f]" : "text-[#0b7d61]"
+                  }`}
+                >
+                  {festive
+                    ? "🎁 Presente de lançamento: o acesso grátis termina em"
+                    : "O acesso grátis termina em"}
                 </p>
                 <div className="mt-2">
-                  <Countdown untilIso={freeUntilIso} />
+                  <Countdown untilIso={freeUntilIso} variant={festive ? "christmas" : "default"} />
                 </div>
                 <p className="mt-2 text-[11px] font-semibold text-[#6f5b47]">
-                  Depois disso, o acesso volta a ser por plano (Pix) — quem já está dentro
-                  aproveita até o fim.
+                  {festive
+                    ? "Natal de 2026 é o último com o acesso 100% grátis — aproveite (e aprove para presenteia alguém)."
+                    : "Depois disso, o acesso volta a ser por plano (Pix) — quem já está dentro aproveita até o fim."}
                 </p>
               </div>
             )}
@@ -313,6 +339,13 @@ export function Landing({
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <RecoveryBanner enabled={on("recovery_banner_enabled")} />
       </div>
+
+      {/* Plataforma parceira (cross-promo DestravaStudy — Task 18) */}
+      {partner?.enabled && (
+        <div className="mx-auto mt-6 max-w-3xl px-4 sm:px-6">
+          <PartnerBanner partner={partner} />
+        </div>
+      )}
 
       {/* O que é */}
       {on("section_features") && (
@@ -391,11 +424,12 @@ export function Landing({
           {launchFree && (
             <ChristmasFreeBanner
               freeUntilIso={freeUntilIso}
-              enabled={on("launch_christmas_enabled")}
+              enabled={on("launch_christmas_enabled") && festive}
             />
           )}
           <div className="mt-6">
             <PlansSection
+              festive={festive}
               priceOverrides={{
                 pass30: cfg.plans_pass30_price,
                 lifetime: cfg.plans_lifetime_price,

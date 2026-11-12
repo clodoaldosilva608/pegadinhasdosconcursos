@@ -8,6 +8,7 @@
 
 import { dbReady } from "@/lib/db";
 import { LAUNCH_FREE_UNTIL_ISO, LAUNCH_DEADLINE_LABEL } from "@/lib/launch";
+import { isChristmasSeason, isDecember } from "@/lib/season";
 
 export const SITE_DEFAULTS: Record<string, string> = {
   // Lançamento & acesso
@@ -18,6 +19,20 @@ export const SITE_DEFAULTS: Record<string, string> = {
   // Decoração natalina da faixa de lançamento (pisca-pisca, neve, Papai Noel)
   launch_christmas_enabled: "1",
   paywall_enabled: "1",
+  // Temporada natalina (01/11 → 06/01, Dia de Reis): contagem com tema,
+  // selo "Presente de Natal", botão Presentear — desliga sozinha em 07/01.
+  christmas_season_enabled: "1",
+  // Neve em toda a página: auto (só dezembro) | on | off
+  snowfall_page: "auto",
+  // Banner parceiro (cross-promo DestravaStudy) na landing e no /app
+  partner_banner_enabled: "1",
+  partner_banner_url: "https://destravastudy.vercel.app",
+  partner_banner_label: "Plataforma parceira",
+  partner_banner_title: "DestravaStudy",
+  partner_banner_text:
+    "Questões comentadas, simulados e trilhas de estudo para destravar a sua aprovação.",
+  partner_banner_logo: "/destrava-logo.svg",
+  partner_banner_cta: "Acessar agora",
   // Textos da página inicial
   hero_title: "A pegadinha que a banca preparou, decifrada antes da prova",
   hero_subtitle:
@@ -60,6 +75,15 @@ const PUBLIC_KEYS = [
   "launch_countdown_enabled",
   "launch_badge",
   "launch_christmas_enabled",
+  "christmas_season_enabled",
+  "snowfall_page",
+  "partner_banner_enabled",
+  "partner_banner_url",
+  "partner_banner_label",
+  "partner_banner_title",
+  "partner_banner_text",
+  "partner_banner_logo",
+  "partner_banner_cta",
   "hero_title",
   "hero_subtitle",
   "hero_bullets",
@@ -134,4 +158,42 @@ export function launchState(values: SiteConfigValues, now: number = Date.now()):
 /** Usado pelo painel: devolve apenas as chaves conhecidas (whitelist). */
 export function isKnownConfigKey(key: string): boolean {
   return key in SITE_DEFAULTS;
+}
+
+/** Decoração/funcionalidades natalinas ligadas (painel ∧ temporada 01/11→06/01). */
+export function isFestiveSeason(values: SiteConfigValues, now: number = Date.now()): boolean {
+  return cfgBool(values, "christmas_season_enabled") && isChristmasSeason(now);
+}
+
+/** Neve em toda a página: on = sempre, off = nunca, auto = só em dezembro. */
+export function snowfallActive(values: SiteConfigValues, now: number = Date.now()): boolean {
+  const mode = (values.snowfall_page ?? "auto").trim().toLowerCase();
+  if (mode === "on") return true;
+  if (mode === "off") return false;
+  return isDecember(now); // auto
+}
+
+export interface PartnerConfig {
+  enabled: boolean;
+  url: string;
+  label: string;
+  title: string;
+  text: string;
+  logo: string;
+  cta: string;
+}
+
+/** Banner parceiro (cross-promo) a partir da config — usado na landing e no /app. */
+export function partnerConfig(values: SiteConfigValues): PartnerConfig {
+  return {
+    enabled: cfgBool(values, "partner_banner_enabled"),
+    url: values.partner_banner_url || "https://destravastudy.vercel.app",
+    label: values.partner_banner_label || "Plataforma parceira",
+    title: values.partner_banner_title || "DestravaStudy",
+    text:
+      values.partner_banner_text ||
+      "Questões comentadas, simulados e trilhas de estudo para destravar a sua aprovação.",
+    logo: values.partner_banner_logo || "/destrava-logo.svg",
+    cta: values.partner_banner_cta || "Acessar agora",
+  };
 }

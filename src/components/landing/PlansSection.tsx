@@ -3,15 +3,31 @@
 // Seção de planos (Passe 30 dias / Vitalício) — usada na landing e no
 // bloqueio de acesso. Checkout via Cakto (Pix), liberação automática.
 // Preços podem ser sobrescritos pelo painel admin (prop priceOverrides).
+//
+// Task 18 — durante a temporada natalina (prop `festive`), o Vitalício vira
+// "Presente de Natal": selo vermelho, preço em vermelho, caixa dourada
+// "Dê este presente a você mesmo" e botão "Presentear um amigo" (modal em 3
+// passos que registra o pedido no suporte). Fora da temporada (07/01+), tudo
+// volta ao normal sozinho.
 
-import { BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Gift, Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { getPlans, type PlanInfo, type PlanPriceOverrides } from "@/lib/plans";
 import { markCheckoutIntent } from "@/lib/recovery";
 import { SupportButton } from "@/components/landing/SupportButton";
+import { GiftModal } from "@/components/launch/GiftModal";
 
-function PlanCard({ plan }: { plan: PlanInfo }) {
+function PlanCard({
+  plan,
+  festive,
+  onGift,
+}: {
+  plan: PlanInfo;
+  festive: boolean;
+  onGift: (plan: PlanInfo) => void;
+}) {
   const [opening, setOpening] = useState(false);
+  const isGift = festive && plan.highlight; // Presente de Natal = Vitalício
 
   const handleCheckout = () => {
     if (!plan.checkout) return;
@@ -25,10 +41,19 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
   return (
     <div
       className={`dp-card relative flex flex-col rounded-3xl p-5 ${
-        plan.highlight ? "ring-2 ring-[#0e9b78]" : ""
+        isGift ? "ring-2 ring-[#c1121f]" : plan.highlight ? "ring-2 ring-[#0e9b78]" : ""
       }`}
     >
-      {plan.highlight && (
+      {/* Selo "Presente de Natal" no Vitalício (temporada natalina) */}
+      {isGift && (
+        <span
+          className="absolute -top-3.5 right-4 rotate-3 rounded-full border-2 border-[#ffd166] bg-gradient-to-r from-[#c1121f] to-[#8f0f1a] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg shadow-red-900/30"
+          data-testid="gift-seal"
+        >
+          🎁 Presente de Natal
+        </span>
+      )}
+      {plan.highlight && !isGift && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-md">
           Mais escolhido
         </span>
@@ -39,7 +64,9 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
           {plan.anchor && (
             <p className="text-xs font-bold text-[#b3997f] line-through">{plan.anchor}</p>
           )}
-          <p className="text-2xl font-black text-[#0b7d61] tabular-nums">{plan.price}</p>
+          <p className={`text-2xl font-black tabular-nums ${isGift ? "text-[#c1121f]" : "text-[#0b7d61]"}`}>
+            {plan.price}
+          </p>
         </div>
       </div>
       <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wide text-[#8a7462]">
@@ -56,12 +83,30 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
         ))}
       </ul>
 
+      {isGift && (
+        <div
+          className="mt-3 rounded-2xl border border-[#ffd166]/70 bg-gradient-to-br from-[#fff7e0] to-[#ffedc2] p-3"
+          data-testid="gift-copy"
+        >
+          <p className="text-[13px] font-black text-[#7a4d0a] leading-snug">
+            🎄 Dê este presente a você mesmo — ou para quem está na batalha do concurso.
+          </p>
+          <p className="mt-0.5 text-[11px] font-bold text-[#9a6b1a]">
+            Acesso permanente pelo preço de lançamento: o presente que não sai de moda.
+          </p>
+        </div>
+      )}
+
       {plan.checkout ? (
         <button
           type="button"
           onClick={handleCheckout}
           disabled={opening}
-          className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-5 py-3 text-sm font-extrabold text-white shadow-md shadow-emerald-900/20 transition hover:from-[#0fa87f] hover:to-[#0b7d61] disabled:opacity-70"
+          className={`mt-4 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-extrabold text-white shadow-md transition disabled:opacity-70 ${
+            isGift
+              ? "bg-gradient-to-r from-[#c1121f] to-[#8f0f1a] shadow-red-900/20 hover:from-[#a30f19] hover:to-[#7a0d15]"
+              : "bg-gradient-to-r from-[#17b98c] to-[#0e9b78] shadow-emerald-900/20 hover:from-[#0fa87f] hover:to-[#0b7d61]"
+          }`}
         >
           {opening && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {opening ? "Abrindo checkout…" : `Pagar com Pix · ${plan.price}`}
@@ -75,6 +120,18 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
           </div>
         </div>
       )}
+
+      {isGift && plan.checkout && (
+        <button
+          type="button"
+          onClick={() => onGift(plan)}
+          className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border-2 border-[#c1121f]/70 bg-white px-5 py-2.5 text-sm font-black text-[#c1121f] transition hover:bg-[#fff5f4]"
+          data-testid="gift-button"
+        >
+          <Gift className="h-4 w-4" aria-hidden="true" />
+          Presentear um amigo
+        </button>
+      )}
     </div>
   );
 }
@@ -82,16 +139,21 @@ function PlanCard({ plan }: { plan: PlanInfo }) {
 export function PlansSection({
   compact = false,
   priceOverrides = {},
+  festive = false,
 }: {
   compact?: boolean;
   priceOverrides?: PlanPriceOverrides;
+  /** Temporada natalina (01/11 → 06/01): selo/botão de presente no Vitalício. */
+  festive?: boolean;
 }) {
   const plans = getPlans(priceOverrides);
+  const [giftPlan, setGiftPlan] = useState<PlanInfo | null>(null);
+
   return (
     <div className="w-full">
       <div className="grid gap-4 sm:grid-cols-2">
         {plans.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} />
+          <PlanCard key={plan.id} plan={plan} festive={festive} onGift={setGiftPlan} />
         ))}
       </div>
       <div className="mt-3 flex items-start gap-2 rounded-2xl border border-[#e7d9c4] bg-white/60 p-3">
@@ -108,6 +170,8 @@ export function PlansSection({
           obrigado) para liberar o acesso neste aparelho.
         </p>
       )}
+
+      {giftPlan && <GiftModal plan={giftPlan} onClose={() => setGiftPlan(null)} />}
     </div>
   );
 }
