@@ -340,3 +340,21 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 **Notas:** o botão "Presentear" exige checkout configurado (`NEXT_PUBLIC_CAKTO_CHECKOUT_*`) — intencional, para não oferecer presente sem link de pagamento. Neve auto fica ligada sozinha em dezembro (01/12→31/12 Brasília) e desliga em 01/01. Limite conhecido mantido: banco /tmp efêmero na Vercel (aviso adicionado ao painel); migração p/ Postgres continua recomendada.
 
 **Git:** commit a0c3d62 (feat) + este worklog (autor clodoaldosilva608@gmail.com), push origin main; deploy CLI `vercel deploy --prod` (sem integração Git no projeto).
+
+## Task 18.1 — Logomarca oficial + testes de produção com credenciais e usuário real (2026-11-12)
+
+**Logomarca oficial no banner parceiro:** o dono enviou o PNG 1254×1254 (escudo dourado com águia, livro aberto, wordmark "DestravaStudy", tagline "Estude • Evolua • Conquiste"). Recorte do lockup completo (escudo + wordmark + tagline + estrela), otimização: `public/destrava-logo.webp` 69KB (padrão da config `partner_banner_logo`) + `public/destrava-logo.png` retina 120KB; emblema SVG provisório removido; tile do banner mudou para `object-cover` (a arte tem fundo próprio). E2E local 35/35 revalidado; commit 1e482a8; deploy dpl mzqevdfpt READY — webp 200 no ar.
+
+**Admin em produção (credenciais reais do dono):** login OK (cookie 8h); Visão geral com os 6 KPIs e o aviso "Banco de dados temporário" aparecendo corretamente (SQLite /tmp na Vercel — instância fria nasce vazia, por isso os aparelhos das verificações anteriores sumiram; agora o painel explica). 8 abas renderizam (Visão geral, Usuários do app, Usuários & planos, Leads, Recuperação, Suporte, Site, Conta interna); Site mostra os grupos novos (Natal + Plataforma parceira) com neve em auto e logo `/destrava-logo.webp`.
+
+**Simulação de usuário real em produção (sessão nova, storage limpo):**
+- `/app` aberto sem pagar (lançamento grátis), device id criado, AppUser registrado.
+- BYOK: botão "Usar minha própria chave (opcional)" → provedor Google (default) → chave `AQ.…` do dono colada → "Salvar e testar" → **"Chave válida · a IA respondeu: ok"** + chip "Conectada · Google AI Studio" (chave fica só no navegador, conforme o design).
+- Questão própria de LGPD (4 alternativas) colada em texto → "Mandar para o Detector" → extração criou as opções → tela de confirmação com gabarito B × marcação A → "Analisar pegadinhas" → **análise completa no ar**: alternativa A destacada em vermelho ("Você marcou esta") com o tipo de pegadinha identificado pela IA ("Generalização / Universalização Indevida" — o "somente"), alternativa B em verde como correta, contador caiu (987 análises). Screenshots `scripts/prod_user_*.png`.
+- Loop fechado no painel: o aparelho do usuário real apareceu na aba Usuários do app (Windows · Chrome, GRÁTIS LANÇAMENTO, visitas e 1ª/última visita) e o KPI subiu de 0 → 2 (o 2º é o aparelho da tentativa que falhou por daemon do browser — comportamento esperado).
+
+**Incidente de teste (não é bug do app):** o daemon do agent-browser reciclou o socket no meio do primeiro script de simulação ("Failed to create socket directory: File name too long") — tudo que falhou nessa tentativa foi defeito de automação; reexecução em 4 fases com retry (`scripts/ab_lib.sh`) passou. O POST de track da tentativa quebrada gravou 1 aparelho extra (visível e deletável no painel).
+
+**Infra de testes nova:** `scripts/prod_admin.sh`, `scripts/prod_user_p1..p4.sh`, `scripts/ab_lib.sh` (wrapper com retry), `scripts/e2e_task18.sh` atualizado para o webp, `scripts/optimize_logo.py` (no workspace, fora do repo).
+
+**Git:** commit 1e482a8 (logo) + este worklog, push origin main. Produção: https://pegadinhasdosconcursos.vercel.app (dpl mzqevdfpt).
