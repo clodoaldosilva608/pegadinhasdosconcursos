@@ -9,7 +9,10 @@ const nunito = Nunito({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pegadinhasdosconcursos.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Detector de Pegadinhas · Con-curso",
   description:
     "A ferramenta que te explica os distratores das questões e aprofunda o conteúdo pelo gabarito. Mande a questão, confirme o que marcou e entenda a pegadinha.",
@@ -23,6 +26,32 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  // Cartão do convite: quando o link é compartilhado (WhatsApp, Telegram,
+  // redes sociais), ele já chega com banner, descrição e o endereço do app.
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: "/",
+    siteName: "Detector de Pegadinhas · Con-curso",
+    title: "Detector de Pegadinhas · Con-curso",
+    description:
+      "Mande a questão, confirme o que marcou e veja a pegadinha que a banca preparou: o distrator, o operador semântico e o porquê de cada letra (Método 3C).",
+    images: [
+      {
+        url: "/banner-share.png",
+        width: 1200,
+        height: 630,
+        alt: "Detector de Pegadinhas — análise da questão com o Método 3C",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Detector de Pegadinhas · Con-curso",
+    description:
+      "Mande a questão, confirme o que marcou e veja a pegadinha que a banca preparou — pelo Método 3C.",
+    images: ["/banner-share.png"],
   },
 };
 

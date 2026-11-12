@@ -1,4 +1,7 @@
-// Compartilhar a plataforma com os amigos (Web Share API + WhatsApp/Telegram).
+// Compartilhar a plataforma com os amigos.
+// O convite sai completo: banner (imagem Open Graph), descrição e o link do app.
+
+export const SHARE_TITLE = "Detector de Pegadinhas · Con-curso";
 
 export function appUrl(): string {
   if (typeof window !== "undefined" && window.location.origin.startsWith("http")) {
@@ -7,12 +10,21 @@ export function appUrl(): string {
   return "https://pegadinhasdosconcursos.vercel.app";
 }
 
-export function shareText(): string {
+/** Banner social (1200×630) que aparece como prévia do link no WhatsApp/Telegram. */
+export function bannerUrl(): string {
+  return `${appUrl()}/banner-share.png`;
+}
+
+export function shareDescription(): string {
   return (
     "Descobri o Detector de Pegadinhas: você manda a questão e ele mostra a pegadinha " +
     "que a banca preparou — o distrator, o operador semântico e o porquê de cada alternativa. " +
-    `Vale demais para concurso: ${appUrl()}`
+    "Vale demais para concurso:"
   );
+}
+
+export function shareText(): string {
+  return `${shareDescription()} ${appUrl()}`;
 }
 
 export function whatsappLink(): string {
@@ -27,21 +39,26 @@ export function telegramLink(): string {
 export async function nativeShare(): Promise<"shared" | "unsupported" | "cancelled"> {
   if (typeof navigator === "undefined" || !navigator.share) return "unsupported";
   try {
-    await navigator.share({ title: "Detector de Pegadinhas · Con-curso", text: shareText(), url: appUrl() });
+    await navigator.share({ title: SHARE_TITLE, text: shareText(), url: appUrl() });
     return "shared";
-  } catch {
-    return "cancelled";
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+    return "unsupported";
   }
 }
 
-export async function copyAppLink(): Promise<boolean> {
+/** Copia o convite completo (descrição + link), não apenas o endereço. */
+export async function copyInvite(): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(appUrl());
+    await navigator.clipboard.writeText(shareText());
     return true;
   } catch {
     try {
       const input = document.createElement("textarea");
-      input.value = appUrl();
+      input.value = shareText();
+      input.setAttribute("readonly", "true");
+      input.style.position = "fixed";
+      input.style.opacity = "0";
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
@@ -51,4 +68,41 @@ export async function copyAppLink(): Promise<boolean> {
       return false;
     }
   }
+}
+
+interface FileShareData extends ShareData {
+  files?: File[];
+}
+
+/**
+ * Compartilha o banner como imagem (quando o aparelho aceita arquivos no
+ * Share Sheet — Android/iOS). Sem suporte, baixa o PNG para envio manual.
+ */
+export async function shareBannerImage(): Promise<"shared" | "downloaded" | "cancelled"> {
+  try {
+    const response = await fetch(bannerUrl());
+    const blob = await response.blob();
+    const file = new File([blob], "detector-de-pegadinhas.png", { type: "image/png" });
+    if (typeof navigator !== "undefined" && navigator.share) {
+      const data: FileShareData = { files: [file], title: SHARE_TITLE, text: shareText() };
+      if (typeof navigator.canShare !== "function" || navigator.canShare(data)) {
+        await navigator.share(data);
+        return "shared";
+      }
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+  }
+  try {
+    const anchor = document.createElement("a");
+    anchor.href = bannerUrl();
+    anchor.download = "detector-de-pegadinhas.png";
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } catch {
+    window.open(bannerUrl(), "_blank");
+  }
+  return "downloaded";
 }
