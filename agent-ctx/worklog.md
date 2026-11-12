@@ -224,7 +224,16 @@ mailto criado só após clique), admin (login, 6 abas, Site salvo refletindo na 
 troca de plano pelo diálogo, restaurar padrões), screenshots em scripts/e2e_*.png.
 
 **Notas:** banco de produção segue efêmero por cold start (/tmp) — configurar
-Postgres/Neon se persistência total for exigida. Recomendação mantida: rotacionar a
-senha do admin depois.
+Postgres/Neon se persistência total for exigida (confirmado em produção: mensagem
+de suporte some ao instância fria; dentro da instância quente tudo funciona).
+Recomendação mantida: rotacionar a senha do admin depois.
 
-**Git:** commit pós-task (autor clodoaldosilva608@gmail.com).
+**Produção:** deploy dpl_3mgwVLdybJuudStgDh4mcjrsjYev (pegadinhasdosconcursos-
+kmyvdg9j0) READY — 1ª tentativa (ecm5zwmej) caiu em erro transitório de fetch de
+fonte do Google no build. Verificado: landing 200 com 0 ocorrências do e-mail e
+botão "Suporte"; /api/launch com valores da config; contact sob demanda; POST
+/api/support 200 e mensagem visível na caixa quente; login admin com hash scrypt
+das envs 200; settings/admin 200; E2E browser produção (modal ocultando o e-mail,
+login do painel) com screenshots scripts/e2e_prod_*.png.
+
+**Git:** 17897f1 (autor clodoaldosilva608@gmail.com), push origin main.
