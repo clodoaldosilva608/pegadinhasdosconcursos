@@ -31,7 +31,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
   partner_banner_title: "DestravaStudy",
   partner_banner_text:
     "Questões comentadas, simulados e trilhas de estudo para destravar a sua aprovação.",
-  partner_banner_logo: "/destrava-logo.svg",
+  partner_banner_logo: "/destrava-logo.webp",
   partner_banner_cta: "Acessar agora",
   // Textos da página inicial
   hero_title: "A pegadinha que a banca preparou, decifrada antes da prova",
@@ -193,7 +193,7 @@ export function partnerConfig(values: SiteConfigValues): PartnerConfig {
     text:
       values.partner_banner_text ||
       "Questões comentadas, simulados e trilhas de estudo para destravar a sua aprovação.",
-    logo: values.partner_banner_logo || "/destrava-logo.svg",
+    logo: values.partner_banner_logo || "/destrava-logo.webp",
     cta: values.partner_banner_cta || "Acessar agora",
   };
 }

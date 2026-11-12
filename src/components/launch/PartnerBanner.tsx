@@ -34,7 +34,7 @@ export function PartnerBanner({ partner }: { partner: PartnerConfig }) {
             alt={`Logomarca ${partner.title}`}
             width={72}
             height={72}
-            className="relative h-16 w-16 rounded-2xl border border-[#f2c14e]/60 bg-white object-contain shadow-md sm:h-[72px] sm:w-[72px]"
+            className="relative h-16 w-16 rounded-2xl border border-[#f2c14e]/60 object-cover shadow-md sm:h-[72px] sm:w-[72px]"
           />
         </span>
 
