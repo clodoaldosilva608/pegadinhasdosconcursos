@@ -107,3 +107,17 @@ model AppUser {
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @updatedAt
 }
+
+// Conta de usuário da plataforma (/entrar): e-mail + senha (scrypt).
+// Sessão stateless via cookie assinado (mesma técnica do acesso pago/admin).
+// Se o e-mail tem compra aprovada (Purchase), o login emite o MESMO token de
+// acesso pago — a conta restaura o acesso comprado em qualquer aparelho.
+model AuthUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+}

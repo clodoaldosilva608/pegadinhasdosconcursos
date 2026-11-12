@@ -386,3 +386,48 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 **Rota de suporte:** POST das mensagens é `/api/support` (o `/api/support/contact` é GET que entrega o canal sob demanda).
 
 **Git:** commit "feat: banco Supabase (Postgres persistente) em produção" + este worklog; deploy dpl g1iic4ysh.
+
+## Task 20 — Página de autenticação do usuário (/entrar) (2026-11-12)
+
+**Pedido:** "Crie uma página de autenticação do usuário".
+
+**O que foi construído:**
+- `/entrar`: abas "Entrar" / "Criar conta" (nome opcional, e-mail, senha com
+  mostrar/ocultar), estado conectado (nome, e-mail, chip do plano ativo,
+  "Ir para a plataforma", "Sair"), suporte e design idêntico ao gate/landing.
+- Novo modelo Prisma `AuthUser` (e-mail único, hash scrypt, nome, lastLoginAt)
+  — `db push` no Supabase + bootstrap idempotente no db.ts (dialeto Postgres).
+- `src/lib/userAuth.ts`: hash/verify scrypt (`scrypt:N:r:p:saltHex:hashHex`,
+  N=16384 — mesmo padrão do admin), sessão stateless em cookie HttpOnly
+  `dp-user` assinado com HMAC-SHA256 (USER_AUTH_SECRET || ACCESS_TOKEN_SECRET),
+  TTL 30 dias, + `bestPurchaseAccess` (melhor compra aprovada: lifetime >
+  pass30 mais recente) e `accessForClient` (emite o MESMO token de acesso pago).
+- Rotas `/api/auth/register` (senha ≥8, 409 duplicado, rate 6/10min),
+  `/api/auth/login` (mensagem única sem enumeration, rate 10/5min,
+  lastLoginAt), `/api/auth/logout`, `/api/auth/session` (sessão + plano).
+- Sinergia: **conta com compra aprovada emite o token de acesso pago no
+  login/registro** — o comprador entra em qualquer aparelho e a plataforma
+  abre sem repetir "Já paguei" (o gate salva via setStoredAccess).
+- Gate bloqueado ganhou o card "Entrar com minha conta" → /entrar.
+- Registro/login postam trackAppOpen → painel vê o e-mail da conta no aparelho.
+
+**Testes:**
+- E2E local 15/15 (scripts/e2e_user_auth.sh): registro+cookie, duplicado 409,
+  senha curta, senha errada/e-mail inexistente (mensagem única), sessão,
+  compra aprovada → login emite access lifetime → /api/access/check 200,
+  logout, limpeza.
+- Produção 7/7 (scripts/prod_verify_auth.sh): /entrar hidrata, registro →
+  redirect /app, DetectorApp visível, estado conectado com **"Vitalício
+  ativo"**, logout, re-login abrindo a plataforma. Screenshot do formulário
+  confirma o design.
+- Aprendizados do processo: (1) processos "next-server" zumbis sobrevivem ao
+  kill do npx — E2E mata por PID/porta antes de subir; (2) ACCESS_TOKEN_SECRET
+  precisa existir no .env.local para o E2E local (next start roda como
+  production — sem o secret, signAccessToken retorna null); (3) o cookie
+  httpOnly de 30 dias sobrevive entre execuções do browser — reset do teste
+  via POST /api/auth/logout, não via localStorage.clear().
+
+**Estado:** lançamento grátis até 01/01/2027 segue valendo (gate aberto);
+com o paywall ativo, o comprador passa a ter login como 2ª porta de entrada.
+Commit "feat: autenticação de usuário (/entrar) — contas com scrypt + sessão
+assinada + acesso automático de comprador" + este worklog.

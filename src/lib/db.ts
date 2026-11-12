@@ -126,6 +126,20 @@ async function createSchema(): Promise<void> {
     `CREATE UNIQUE INDEX IF NOT EXISTS "AppUser_deviceId_key" ON "AppUser"("deviceId")`
   );
   await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "AuthUser" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "email" TEXT NOT NULL,
+      "passwordHash" TEXT NOT NULL,
+      "name" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      "lastLoginAt" TIMESTAMP(3)
+    )`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "AuthUser_email_key" ON "AuthUser"("email")`
+  );
+  await db.$executeRawUnsafe(
     `INSERT INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
      VALUES ('internal', 'Conta interna', 988, true, $1)
      ON CONFLICT ("id") DO NOTHING`,

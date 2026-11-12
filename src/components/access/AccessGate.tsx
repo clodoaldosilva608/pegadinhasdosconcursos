@@ -198,6 +198,31 @@ function LockedView({
         </div>
 
         <div className="mt-4">
+          <div className="dp-card rounded-3xl p-5">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e0f3ed] text-[#0e9b78]">
+                <LogIn className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-extrabold dp-text-ink leading-tight">
+                  Entrar com minha conta
+                </h3>
+                <p className="mt-0.5 text-xs font-semibold text-[#8a7462] leading-snug">
+                  E-mail e senha. Se você já comprou, o acesso é liberado neste aparelho na hora —
+                  sem repetir o “Já paguei”. Trocou de celular? Só entrar de novo.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/entrar"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#0e9b78] bg-white px-4 py-2.5 text-sm font-extrabold text-[#0b7d61] transition hover:bg-[#e0f3ed]"
+            >
+              Entrar / Criar conta
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-4">
           <RecoveryBanner enabled={recoveryEnabled} />
         </div>
 
