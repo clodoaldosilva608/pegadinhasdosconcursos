@@ -98,3 +98,59 @@ twitter:card summary_large_image; E2E produção confirmou prévia do convite no
 banner carregado via otimizador Next.
 
 **Git:** 1baa172 (autor clodoaldosilva608@gmail.com), push origin main OK.
+
+## Task 13 — Lançamento grátis até 01/01/2027 + funil de leads + painel admin
+
+**Pedidos:** (a) acesso gratuito por tempo limitado até 01/01/2027 com cronômetro
+regressivo como estratégia de lançamento; (b) opinião/sugestões; (c) funil para coletar
+e-mail/WhatsApp para ofertas futuras; (d) painel admin completo com CRUD, acessado por
+botão no rodapé da landing, com login exclusivo (credenciais informadas pelo cliente).
+
+**Lançamento gratuito:**
+- `src/lib/launch.ts`: janela até 2027-01-01T00:00:00-03:00; `isLaunchFreeNow()`.
+- Decisão SEMPRE no servidor: `GET /api/launch` (launchFree/freeUntil/serverNow);
+  AccessGate consulta e cai no paywall quando fecha; fallback relógio local.
+- Rotas de IA (extract/analyze/ai-test): bypass do requireAccess durante a janela
+  (produção confirmada: key inválida retorna erro do Google, não ACCESS_REQUIRED).
+- Landing: badge "Lançamento · 100% grátis até 01/01/2027", cronômetro no hero
+  (Countdown, dias/horas/min/seg, SSR seguro), passo 2 adaptado, faixa nos planos
+  ("grátis até 01/01/2027; vitalício garante permanente"), FAQ "Por que está grátis?".
+- `LaunchStrip` fixa no /app durante a janela: cronômetro + "Receber avisos" (mini
+  formulário) + dispensável (localStorage dp-launch-strip-dismissed).
+- Tela de bloqueio pós-prazo informa "lançamento encerrado em 01/01/2027".
+
+**Funil (LGPD):**
+- Modelo `Lead` (Prisma + CREATE TABLE no bootstrap serverless; email único).
+- `POST /api/leads`: consent true obrigatório (400 caso contrário), WhatsApp
+  normalizado (10–13 dígitos), rate limit 10/5min, upsert por e-mail, source
+  (landing/app/gate/admin).
+- Pontos de captura: seção #avisos na landing, faixa do app, tela de bloqueio.
+
+**Admin (`/admin`, link discreto no rodapé; robots + noindex):**
+- `lib/adminAuth.ts`: sessão cookie HttpOnly HMAC (dp-admin, 8h), credenciais
+  ADMIN_EMAIL/ADMIN_PASSWORD com fallback das informadas
+  (clodoaldo608@gmail.com), login com anti-força-bruta (8/10min por IP) e
+  safeEqual; assinatura com ADMIN_SECRET (já definido na Vercel).
+- APIs: login/logout/session, overview (KPIs leads/compras/receita/análises),
+  leads CRUD + busca + filtro + paginação + export CSV (BOM, Excel-BR),
+  compras listar + PATCH approved/refunded, contas listar + PATCH,
+  unlock manual por e-mail/plano (token emitido como no admin-unlock).
+- UI `AdminApp`: login → shell com 4 abas (Visão geral, Leads, Compras, Contas),
+  KPI cards, tabelas responsivas, dialogs de criar/editar/excluir, liberação
+  manual, toasts, logout.
+
+**Testes:** lint/tsc limpos; local (3111): /api/launch ok; leads sem consent → 400
+LGPD, com consent → upsert; admin sem cookie 401; login errado 401, correto (e-mail
+case-insensitive) → cookie; overview/search/CSV/unlock/accounts PATCH ok; E2E browser:
+landing (badge+cronômetro 49d+formulário ok), /app aberto + faixa + lead pela faixa,
+admin completo (login, KPIs, criar/editar/excluir lead, revogar/reativar compra, unlock
+manual, editar conta, logout). Produção (f2764k9mj Ready): /api/launch true; ai-test
+key inválida → 401 Google (bypass ok); leads 400 sem consent; /admin 200; login real ok
+(toast 8h); lead criado na landing de produção e excluído pela UI (LGPD ok); robots
+bloqueia /admin e /api/admin.
+
+**Notas:** reembolsos revertidos para approved no teste local foram normalizados;
+banco de produção nasce limpo por cold start (comportamento conhecido). Senha do
+admin compartilhada em chat — recomendação: trocar via env ADMIN_PASSWORD e rotacionar.
+
+**Git:** 1b550c0 (autor clodoaldosilva608@gmail.com), push origin main.
