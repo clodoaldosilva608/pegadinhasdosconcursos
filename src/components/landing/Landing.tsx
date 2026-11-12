@@ -10,7 +10,6 @@
 
 import Link from "next/link";
 import {
-  Bell,
   BookMarked,
   BookOpen,
   Camera,
@@ -30,6 +29,7 @@ import { RecoveryBanner } from "@/components/landing/RecoveryBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
 import { LeadForm } from "@/components/launch/LeadForm";
 import { Countdown } from "@/components/launch/Countdown";
+import { ChristmasFreeBanner } from "@/components/launch/ChristmasFreeBanner";
 import { SupportButton } from "@/components/landing/SupportButton";
 import type { PublicSiteConfig } from "@/lib/siteConfig";
 
@@ -389,16 +389,10 @@ export function Landing({
             subtitle="Pagamento no Pix processado pela Cakto. Liberação automática na confirmação."
           />
           {launchFree && (
-            <div className="dp-card mt-6 rounded-3xl p-4 text-center">
-              <p className="flex items-center justify-center gap-1.5 text-sm font-extrabold dp-text-ink">
-                <Bell className="h-4 w-4 text-[#0e9b78]" aria-hidden="true" />
-                A plataforma está 100% grátis até {freeUntilIso ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" }).format(new Date(freeUntilIso)) : "01/01/2027"}
-              </p>
-              <p className="mx-auto mt-1 max-w-lg text-xs font-semibold text-[#6f5b47] leading-relaxed">
-                Ninguém precisa pagar durante o lançamento. Os planos abaixo são para quem quer
-                garantir o acesso permanente — com preço de lançamento.
-              </p>
-            </div>
+            <ChristmasFreeBanner
+              freeUntilIso={freeUntilIso}
+              enabled={on("launch_christmas_enabled")}
+            />
           )}
           <div className="mt-6">
             <PlansSection

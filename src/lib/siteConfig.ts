@@ -15,6 +15,8 @@ export const SITE_DEFAULTS: Record<string, string> = {
   launch_free_until: LAUNCH_FREE_UNTIL_ISO,
   launch_countdown_enabled: "1",
   launch_badge: `Lançamento · 100% grátis até ${LAUNCH_DEADLINE_LABEL}`,
+  // Decoração natalina da faixa de lançamento (pisca-pisca, neve, Papai Noel)
+  launch_christmas_enabled: "1",
   paywall_enabled: "1",
   // Textos da página inicial
   hero_title: "A pegadinha que a banca preparou, decifrada antes da prova",
@@ -57,6 +59,7 @@ export type SiteConfigValues = Record<string, string>;
 const PUBLIC_KEYS = [
   "launch_countdown_enabled",
   "launch_badge",
+  "launch_christmas_enabled",
   "hero_title",
   "hero_subtitle",
   "hero_bullets",

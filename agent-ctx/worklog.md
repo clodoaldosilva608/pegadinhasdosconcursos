@@ -281,3 +281,22 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 **Notas:** sem serviço de e-mail próprio — recuperação por envio 1-clique (painel) + recomendação de ativar a recuperação automática nativa da Cakto no painel deles como camada principal. Sem urgência falsa: argumento é preço de lançamento + risco real. Fase futura sugerida: programa de indicação com recompensa (cupons no backend).
 
 **Git:** commit pendente (autor clodoaldosilva608@gmail.com).
+
+## Task 17 — Faixa natalina da seção de lançamento: pisca-pisca, neve e Papai Noel acenando (2026-11-12)
+
+**Pedido do usuário:** na landing, a seção "A plataforma está 100% grátis até 01/01/2027" deve ganhar decoração natalina com iluminação, neve caindo e Papai Noel acenando; opinião/sugestões.
+
+**Implementação — `src/components/launch/ChristmasFreeBanner.tsx` (novo):**
+- Cartão da seção Planos trocado pelo banner natalino: fundo verde-musgo em degradê (`#11593f→#0a3025`), brilho quente radial vindo do topo, fio de luzes (pisca-pisca, 14 lâmpadas coloridas com glow e delay escalonado), 26 flocos de neve caindo com drift, 7 estrelinhas douradas cintilando, presentes (CSS puro) no canto esquerdo e **Papai Noel acenando** (SVG autoral com braço animado + balão "Olá!").
+- **Neve determinística (PRNG mulberry32, semente fixa 20261225):** servidor e cliente geram os mesmos flocos — sem mismatch de hidratação; zero imagens/JS extra.
+- Texto 1:1 idêntico ao cartão original (data vem de `launch_free_until` no servidor); decoração toda `aria-hidden` + `pointer-events-none`.
+- Animações em `globals.css` (`dp-xmas-blink/snow/wave/bob/bubble/twinkle`), com `prefers-reduced-motion` desligando tudo.
+- **Chave admin `launch_christmas_enabled`** (siteConfig + PUBLIC_KEYS + painel Site): off = cartão simples original; on = faixa natalina. Controle 1-clique pelo dono.
+- Banner só renderiza durante a janela grátis (`launchFree`), junto aos planos.
+- **Correção mobile:** presentes escondidos abaixo de `sm` (`hidden sm:block`) — cobriam a linha "PRESENTE DE LANÇAMENTO · NATAL" em telas estreitas; desktop mantém presentes no canto.
+
+**Opinião/sugestões entregues ao usuário:** decoração só na faixa (não no site inteiro), tema amarra com a data de corte 01/01/2027 (Natal = presente de lançamento), toggle no painel para desligar após as festas, acessibilidade (aria-hidden + reduced-motion) e desempenho (CSS puro, sem imagens). Sugestões futuras: neve na página inteira com toggle, selo "presente de Natal" no Vitalício, e contagem regressiva com chapéu natalino.
+
+**Testes:** tsc 0 erros em src/, eslint limpo; browser local (3111): 26 flocos + 14 lâmpadas + santa OK, balão "Olá!", desktop sem sobreposição, mobile sem presentes e tagline legível; `prefers-reduced-motion` via CSS. Constatado durante o teste: service worker da PWA servia HTML antigo em cache — desregistrado/caches limpos para validar (usuários reais recebem a nova versão pelo fluxo de atualização do SW).
+
+**Git:** commit pendente deste worklog (autor clodoaldosilva608@gmail.com).

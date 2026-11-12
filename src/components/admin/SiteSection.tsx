@@ -213,6 +213,12 @@ export function SiteSection() {
             checked={isOn("launch_countdown_enabled")}
             onChange={(next) => toggle("launch_countdown_enabled", next)}
           />
+          <Toggle
+            label="Decoração natalina na faixa de lançamento"
+            hint="Pisca-pisca, neve caindo e Papai Noel acenando no cartão “100% grátis” da landing."
+            checked={isOn("launch_christmas_enabled")}
+            onChange={(next) => toggle("launch_christmas_enabled", next)}
+          />
           <Field label="Texto do selo de lançamento">
             <input
               value={values.launch_badge ?? ""}
