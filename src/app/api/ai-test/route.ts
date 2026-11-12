@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZai } from "@/lib/zai";
+import { requireAccess } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -7,6 +8,9 @@ export const maxDuration = 60;
 const MAX_KEY_LENGTH = 300;
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAccess(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json().catch(() => ({}));
     const provider = body?.provider === "google" ? "google" : "zai";

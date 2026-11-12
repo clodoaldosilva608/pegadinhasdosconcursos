@@ -7,11 +7,15 @@ import {
   type AnalyzeInput,
 } from "@/lib/analysis";
 import { dbReady } from "@/lib/db";
+import { requireAccess } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAccess(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
     const input: AnalyzeInput = {

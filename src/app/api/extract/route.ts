@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZai } from "@/lib/zai";
 import { buildExtractMessages, safeParse } from "@/lib/analysis";
+import { requireAccess } from "@/lib/access";
 import type { ExtractedQuestion } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,9 @@ const FALLBACK: ExtractedQuestion = {
 };
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAccess(req);
+  if (denied) return denied;
+
   try {
     const body = await req.json();
     const images: string[] = Array.isArray(body?.images) ? body.images.slice(0, 4) : [];

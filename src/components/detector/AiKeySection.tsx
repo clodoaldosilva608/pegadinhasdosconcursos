@@ -22,6 +22,7 @@ import {
   subscribeUserAi,
   type UserAiProvider,
 } from "@/lib/userAiStore";
+import { authHeaders, handleAccessDenied } from "@/lib/accessStore";
 
 interface TestResult {
   ok: boolean;
@@ -104,9 +105,13 @@ export function AiKeySection() {
     try {
       const res = await fetch("/api/ai-test", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ provider, key }),
       });
+      if (res.status === 401) {
+        handleAccessDenied();
+        return;
+      }
       const data = (await res.json()) as { ok?: boolean; error?: string; sample?: string };
       if (data.ok) {
         saveUserAi({ provider, key });
@@ -132,9 +137,13 @@ export function AiKeySection() {
     try {
       const res = await fetch("/api/ai-test", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ provider: saved.provider, key: saved.key }),
       });
+      if (res.status === 401) {
+        handleAccessDenied();
+        return;
+      }
       const data = (await res.json()) as { ok?: boolean; error?: string; sample?: string };
       if (data.ok) {
         setResult({

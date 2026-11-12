@@ -26,3 +26,18 @@ model Analysis {
   resultJson    String
   createdAt     DateTime @default(now())
 }
+
+// Compras liberadas (Cakto). Uma linha por e-mail + plano.
+model Purchase {
+  id          String   @id @default(cuid())
+  email       String
+  plan        String   @default("lifetime") // lifetime | pass30
+  status      String   @default("approved") // approved | refunded
+  provider    String   @default("cakto")
+  refId       String?
+  amountCents Int?
+  createdAt   DateTime @default(now())
+
+  @@unique([email, plan])
+  @@index([email])
+}

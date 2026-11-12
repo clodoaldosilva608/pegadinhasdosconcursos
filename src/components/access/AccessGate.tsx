@@ -1,0 +1,257 @@
+"use client";
+
+// Portão de acesso pago da plataforma (/app).
+// - Sem token válido: mostra a tela de bloqueio com planos + "Já paguei".
+// - Com token válido: renderiza a plataforma (children).
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Loader2, LockKeyhole, LogIn, MailCheck, ScanSearch } from "lucide-react";
+import { PlansSection } from "@/components/landing/PlansSection";
+import { InstallBanner } from "@/components/detector/InstallBanner";
+import { ShareCard } from "@/components/pwa/ShareCard";
+import { SUPPORT_EMAIL } from "@/lib/plans";
+import {
+  clearStoredAccess,
+  getStoredAccess,
+  setStoredAccess,
+  verifyAccessRemote,
+  type StoredAccess,
+} from "@/lib/accessStore";
+
+type GateState = "checking" | "locked" | "open";
+
+function VerifyBox({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void }) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<"error" | "info">("error");
+
+  const verify = useCallback(
+    async (value: string, silent = false) => {
+      const target = value.trim();
+      if (!target) {
+        if (!silent) setMessage("Digite o e-mail que você usou na compra.");
+        return;
+      }
+      setLoading(true);
+      if (!silent) setMessage(null);
+      try {
+        const res = await fetch("/api/access/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: target }),
+        });
+        const data = (await res.json()) as {
+          ok: boolean;
+          token?: string;
+          plan?: string;
+          email?: string;
+          expiresAt?: string;
+          message?: string;
+        };
+        if (res.ok && data.ok && data.token) {
+          const access: StoredAccess = {
+            token: data.token,
+            email: data.email ?? target.toLowerCase(),
+            plan: data.plan ?? "lifetime",
+            expiresAt: data.expiresAt ?? "",
+          };
+          setStoredAccess(access);
+          onUnlocked(access);
+          return;
+        }
+        setMessageTone("info");
+        setMessage(data.message ?? "Não consegui verificar agora. Tente novamente em instantes.");
+      } catch {
+        setMessageTone("error");
+        setMessage("Erro de conexão. Tente novamente em instantes.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onUnlocked]
+  );
+
+  return (
+    <div className="dp-card rounded-3xl p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e0f3ed] text-[#0e9b78]">
+          <MailCheck className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-extrabold dp-text-ink leading-tight">Já paguei</h3>
+          <p className="mt-0.5 text-xs font-semibold text-[#8a7462] leading-snug">
+            Informe o e-mail usado no pagamento do Pix. O acesso é liberado na hora neste aparelho.
+          </p>
+        </div>
+      </div>
+
+      <form
+        className="mt-3 flex flex-col gap-2 sm:flex-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void verify(email);
+        }}
+      >
+        <input
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="seu@email.com"
+          aria-label="E-mail da compra"
+          className="flex-1 rounded-xl border border-[#e7d9c4] bg-white/90 px-3.5 py-2.5 text-sm font-semibold text-[#233028] placeholder:text-[#c4ac93] focus:border-[#0e9b78] focus:outline-none focus:ring-2 focus:ring-[#0e9b78]/25"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-4 py-2.5 text-sm font-extrabold text-white shadow-md shadow-emerald-900/20 transition hover:from-[#0fa87f] hover:to-[#0b7d61] disabled:opacity-70"
+        >
+          {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {loading ? "Verificando…" : "Liberar acesso"}
+        </button>
+      </form>
+
+      {message && (
+        <p
+          className={`mt-2.5 rounded-xl px-3 py-2 text-xs font-bold leading-snug ${
+            messageTone === "error"
+              ? "bg-[#fdeeEA] text-[#c2472f]"
+              : "bg-[#f9ddc4] text-[#9a5b23]"
+          }`}
+          role="status"
+        >
+          {message}
+        </p>
+      )}
+
+      <p className="mt-2 text-[11px] font-semibold text-[#a08a77]">
+        Problemas? Suporte:{" "}
+        <a
+          href={`mailto:${SUPPORT_EMAIL}?subject=Libera%C3%A7%C3%A3o%20de%20acesso%20Detector`}
+          className="font-extrabold text-[#0b7d61] underline decoration-2 underline-offset-2"
+        >
+          {SUPPORT_EMAIL}
+        </a>
+      </p>
+    </div>
+  );
+}
+
+function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void }) {
+  return (
+    <main className="dp-app-bg min-h-screen w-full">
+      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-4 pb-10 pt-6 sm:px-6">
+        <header className="flex items-center justify-between gap-3">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md shadow-emerald-900/20"
+              style={{ background: "linear-gradient(135deg, #14b98d 0%, #0b7d61 100%)" }}
+              aria-hidden="true"
+            >
+              <ScanSearch className="h-5 w-5" strokeWidth={2.2} />
+            </span>
+            <div className="leading-tight">
+              <p className="text-sm font-extrabold dp-text-ink">Detector de Pegadinhas</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#8a6a52]">
+                Con-curso
+              </p>
+            </div>
+          </Link>
+          <Link
+            href="/"
+            className="text-xs font-extrabold text-[#0b7d61] underline decoration-2 underline-offset-2"
+          >
+            Página inicial
+          </Link>
+        </header>
+
+        <div className="mt-6 dp-card rounded-3xl p-5 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#233028] text-white shadow-lg">
+            <LockKeyhole className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h1 className="mt-3 text-xl font-black dp-text-ink">Conteúdo exclusivo</h1>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm font-semibold text-[#6f5b47] leading-relaxed">
+            O Detector completo — análise de questões, guia de distratores e vocabulário-armadilha —
+            é liberado com o pagamento do Pix. Escolha um plano abaixo ou, se já pagou, use o
+            “Já paguei” com o e-mail da compra.
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <PlansSection compact />
+        </div>
+
+        <div className="mt-4">
+          <VerifyBox onUnlocked={onUnlocked} />
+        </div>
+
+        <div className="mt-4">
+          <InstallBanner />
+        </div>
+
+        <div className="mt-4">
+          <ShareCard compact />
+        </div>
+
+        <footer className="mt-auto pt-8 text-center">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[#bda38c]">
+            Detector de Pegadinhas · Con-curso
+          </p>
+        </footer>
+      </div>
+    </main>
+  );
+}
+
+export function AccessGate({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<GateState>("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      // Um microtask para não setar estado sincronamente no corpo do efeito.
+      await Promise.resolve();
+      if (cancelled) return;
+      const stored = getStoredAccess();
+      if (!stored) {
+        setState("locked");
+        return;
+      }
+      const ok = await verifyAccessRemote(stored.token);
+      if (cancelled) return;
+      if (!ok) clearStoredAccess();
+      setState(ok ? "open" : "locked");
+    };
+    void check();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === "checking") {
+    return (
+      <main className="dp-app-bg flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-2.5 text-[#6f5b47]">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+          <p className="text-sm font-extrabold">Verificando seu acesso…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (state === "open") return <>{children}</>;
+
+  return (
+    <LockedView
+      onUnlocked={() => {
+        setState("open");
+        window.scrollTo({ top: 0 });
+      }}
+    />
+  );
+}
+
+export { VerifyBox };

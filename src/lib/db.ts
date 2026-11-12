@@ -40,6 +40,24 @@ async function createSchema(): Promise<void> {
     )`
   );
   await db.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "Purchase" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "email" TEXT NOT NULL,
+      "plan" TEXT NOT NULL DEFAULT 'lifetime',
+      "status" TEXT NOT NULL DEFAULT 'approved',
+      "provider" TEXT NOT NULL DEFAULT 'cakto',
+      "refId" TEXT,
+      "amountCents" INTEGER,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Purchase_email_plan_key" ON "Purchase"("email", "plan")`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE INDEX IF NOT EXISTS "Purchase_email_idx" ON "Purchase"("email")`
+  );
+  await db.$executeRawUnsafe(
     `INSERT OR IGNORE INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
      VALUES ('internal', 'Conta interna', 988, 1, ?)`,
     Date.now()

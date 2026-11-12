@@ -17,23 +17,28 @@ export function InstallBanner() {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    try {
-      setDismissed(window.localStorage.getItem(DISMISS_KEY) === "1");
-    } catch {
-      // storage indisponível
-    }
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as { standalone?: boolean }).standalone === true;
-    if (standalone) {
-      setInstalled(true);
-      return;
-    }
-    const ua = window.navigator.userAgent;
-    const iOS =
-      /iPad|iPhone|iPod/.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    setIsIOS(iOS);
+    let cancelled = false;
+    // Inicialização adiada: evita setState síncrono no corpo do efeito.
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      try {
+        setDismissed(window.localStorage.getItem(DISMISS_KEY) === "1");
+      } catch {
+        // storage indisponível
+      }
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as { standalone?: boolean }).standalone === true;
+      if (standalone) {
+        setInstalled(true);
+        return;
+      }
+      const ua = window.navigator.userAgent;
+      const iOS =
+        /iPad|iPhone|iPod/.test(ua) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      setIsIOS(iOS);
+    }, 0);
 
     const onPrompt = (event: Event) => {
       event.preventDefault();
@@ -43,6 +48,8 @@ export function InstallBanner() {
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
