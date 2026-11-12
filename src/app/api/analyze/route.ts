@@ -8,13 +8,17 @@ import {
 } from "@/lib/analysis";
 import { dbReady } from "@/lib/db";
 import { requireAccess } from "@/lib/access";
+import { isLaunchFreeNow } from "@/lib/launch";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const denied = await requireAccess(req);
-  if (denied) return denied;
+  // Lançamento: acesso grátis até 01/01/2027 (decisão pelo relógio do servidor).
+  if (!isLaunchFreeNow()) {
+    const denied = await requireAccess(req);
+    if (denied) return denied;
+  }
 
   try {
     const body = await req.json();

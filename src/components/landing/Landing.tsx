@@ -5,11 +5,13 @@
 
 import Link from "next/link";
 import {
+  Bell,
   BookMarked,
   BookOpen,
   Camera,
   CheckCircle2,
   ChevronDown,
+  Gift,
   KeyRound,
   LogIn,
   ScanSearch,
@@ -19,6 +21,9 @@ import {
 } from "lucide-react";
 import { InstallAndShare } from "@/components/pwa/InstallAndShare";
 import { PlansSection } from "@/components/landing/PlansSection";
+import { LeadForm } from "@/components/launch/LeadForm";
+import { Countdown } from "@/components/launch/Countdown";
+import { LAUNCH_DEADLINE_LABEL, LAUNCH_FREE_UNTIL_ISO, isLaunchFreeNow } from "@/lib/launch";
 import { SUPPORT_EMAIL } from "@/lib/plans";
 
 const NAV = [
@@ -69,6 +74,12 @@ const STEPS = [
   },
 ];
 
+const STEP_FREE = {
+  icon: Zap,
+  title: "Entre grátis — o acesso já está liberado",
+  text: "Durante o lançamento, a plataforma abre sem pagar nada. Quer garantir para sempre? O vitalício segue com preço de lançamento.",
+};
+
 const FAQ = [
   {
     q: "Preciso pagar mais alguma coisa para a IA funcionar?",
@@ -77,6 +88,10 @@ const FAQ = [
   {
     q: "Como funciona a liberação depois do Pix?",
     a: "Quando a Cakto confirma o pagamento, o acesso é liberado automaticamente: na tela de obrigado o app já abre liberado. Se você sair do app, basta informar o e-mail da compra em “Já paguei” — a verificação é na hora.",
+  },
+  {
+    q: "Por que está grátis? Vai continuar assim?",
+    a: "É a estratégia de lançamento: acesso 100% grátis até 01/01/2027, com cronômetro na página. Depois dessa data o acesso volta a ser por plano (Pix, via Cakto). Quem quiser travar o preço e garantir o acesso permanente já pode comprar o vitalício.",
   },
   {
     q: "Funciona no iPhone?",
@@ -119,6 +134,12 @@ function SectionHeading({
 }
 
 export function Landing() {
+  // Lançamento gratuito: cópias adaptadas enquanto a janela estiver ativa.
+  // A decisão de liberar o app em si é do servidor (/api/launch) — aqui é
+  // apenas a comunicação da página.
+  const launchFree = isLaunchFreeNow();
+  const steps = launchFree ? STEPS.map((s, i) => (i === 1 ? STEP_FREE : s)) : STEPS;
+
   return (
     <main className="dp-app-bg min-h-screen w-full">
       {/* Header */}
@@ -164,6 +185,12 @@ export function Landing() {
       <section className="mx-auto max-w-5xl px-4 pb-10 pt-10 sm:px-6 sm:pt-14">
         <div className="grid items-center gap-8 md:grid-cols-2">
           <div>
+            {launchFree && (
+              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#0e9b78] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white shadow-md shadow-emerald-900/20">
+                <Gift className="h-3.5 w-3.5" aria-hidden="true" />
+                Lançamento · 100% grátis até {LAUNCH_DEADLINE_LABEL}
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#0e9b78]/25 bg-[#e0f3ed] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#0b7d61]">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
               Feito para concurseiros
@@ -180,6 +207,20 @@ export function Landing() {
             <div className="mt-5">
               <InstallAndShare />
             </div>
+            {launchFree && (
+              <div className="mt-5 inline-block rounded-2xl border border-[#0e9b78]/25 bg-[#e0f3ed]/70 px-4 py-3">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#0b7d61]">
+                  O acesso grátis termina em
+                </p>
+                <div className="mt-2">
+                  <Countdown untilIso={LAUNCH_FREE_UNTIL_ISO} />
+                </div>
+                <p className="mt-2 text-[11px] font-semibold text-[#6f5b47]">
+                  Depois disso, o acesso volta a ser por plano (Pix) — quem já está dentro
+                  aproveita até o fim.
+                </p>
+              </div>
+            )}
             <ul className="mt-5 flex flex-wrap gap-x-4 gap-y-1.5">
               {[
                 "Abre como aplicativo, direto da tela inicial",
@@ -275,10 +316,10 @@ export function Landing() {
       <section id="como-usar" className="mx-auto max-w-5xl scroll-mt-20 px-4 py-10 sm:px-6">
         <SectionHeading
           eyebrow="Como usar"
-          title="Do Pix à primeira análise em poucos minutos"
+          title={launchFree ? "Grátis agora: do instante à primeira análise em minutos" : "Do Pix à primeira análise em poucos minutos"}
         />
         <ol className="mt-6 grid gap-4 sm:grid-cols-2">
-          {STEPS.map((step, index) => (
+          {steps.map((step, index) => (
             <li key={step.title} className="dp-card flex items-start gap-3 rounded-3xl p-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#17b98c] to-[#0b7d61] text-sm font-black text-white">
                 {index + 1}
@@ -297,6 +338,18 @@ export function Landing() {
         </ol>
       </section>
 
+      {/* Avisos (funil de captação com consentimento LGPD) */}
+      <section id="avisos" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-10 sm:px-6">
+        <SectionHeading
+          eyebrow="Fique por dentro"
+          title="Receba novidades e ofertas em primeira mão"
+          subtitle="Cupons, novos blocos de vocabulário e avisos do lançamento — direto no seu e-mail ou WhatsApp. Sem spam: você autoriza e pode sair quando quiser."
+        />
+        <div className="dp-card mx-auto mt-6 max-w-xl rounded-3xl p-5">
+          <LeadForm source="landing" />
+        </div>
+      </section>
+
       {/* Planos */}
       <section id="planos" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-10 sm:px-6">
         <SectionHeading
@@ -304,6 +357,18 @@ export function Landing() {
           title="Escolha o seu acesso"
           subtitle="Pagamento no Pix processado pela Cakto. Liberação automática na confirmação."
         />
+        {launchFree && (
+          <div className="dp-card mt-6 rounded-3xl p-4 text-center">
+            <p className="flex items-center justify-center gap-1.5 text-sm font-extrabold dp-text-ink">
+              <Bell className="h-4 w-4 text-[#0e9b78]" aria-hidden="true" />
+              A plataforma está 100% grátis até {LAUNCH_DEADLINE_LABEL}
+            </p>
+            <p className="mx-auto mt-1 max-w-lg text-xs font-semibold text-[#6f5b47] leading-relaxed">
+              Ninguém precisa pagar durante o lançamento. Os planos abaixo são para quem quer
+              garantir o acesso permanente — com preço de lançamento.
+            </p>
+          </div>
+        )}
         <div className="mt-6">
           <PlansSection />
         </div>
@@ -349,8 +414,9 @@ export function Landing() {
             </div>
             <p className="max-w-xl text-xs font-semibold text-[#8a6a52] leading-relaxed">
               Produto independente de estudos, sem vínculo com bancas ou órgãos públicos.
-              Pagamentos processados pela Cakto. Coletamos apenas o e-mail da compra, usado para
-              liberar e recuperar o seu acesso (LGPD).
+              Pagamentos processados pela Cakto. Coletamos o e-mail da compra e, com o seu
+              consentimento, e-mail/WhatsApp para avisos e ofertas (você pode pedir remoção a
+              qualquer momento — LGPD).
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-extrabold">
               <a href="#planos" className="text-[#0b7d61] hover:underline">
@@ -367,6 +433,13 @@ export function Landing() {
               >
                 Suporte: {SUPPORT_EMAIL}
               </a>
+              <span className="text-[#d9c8b4]">·</span>
+              <Link
+                href="/admin"
+                className="text-[#bda38c] transition hover:text-[#0b7d61] hover:underline"
+              >
+                Admin
+              </Link>
             </div>
             <p className="text-[11px] font-semibold text-[#cbb5a0]">
               Estude pela questão · Conheça a banca · Aprofunde o conteúdo pelo gabarito

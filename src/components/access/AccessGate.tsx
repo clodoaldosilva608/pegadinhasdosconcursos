@@ -6,10 +6,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, LockKeyhole, LogIn, MailCheck, ScanSearch } from "lucide-react";
+import { CalendarClock, Loader2, LockKeyhole, LogIn, MailCheck, ScanSearch } from "lucide-react";
 import { PlansSection } from "@/components/landing/PlansSection";
 import { InstallBanner } from "@/components/detector/InstallBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
+import { LeadForm } from "@/components/launch/LeadForm";
+import { LaunchStrip } from "@/components/launch/LaunchStrip";
+import { LAUNCH_DEADLINE_LABEL, LAUNCH_FREE_UNTIL_ISO, isLaunchFreeNow } from "@/lib/launch";
 import { SUPPORT_EMAIL } from "@/lib/plans";
 import {
   clearStoredAccess,
@@ -174,9 +177,14 @@ function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void
           </span>
           <h1 className="mt-3 text-xl font-black dp-text-ink">Conteúdo exclusivo</h1>
           <p className="mx-auto mt-1.5 max-w-sm text-sm font-semibold text-[#6f5b47] leading-relaxed">
-            O Detector completo — análise de questões, guia de distratores e vocabulário-armadilha —
-            é liberado com o pagamento do Pix. Escolha um plano abaixo ou, se já pagou, use o
+            O período de lançamento gratuito (encerrado em {LAUNCH_DEADLINE_LABEL}) acabou. O
+            Detector completo — análise de questões, guia de distratores e vocabulário-armadilha
+            — é liberado com o pagamento do Pix. Escolha um plano abaixo ou, se já pagou, use o
             “Já paguei” com o e-mail da compra.
+          </p>
+          <p className="mx-auto mt-2 flex max-w-sm items-center justify-center gap-1.5 text-[11px] font-bold text-[#9a5b23]">
+            <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+            Já estudou grátis no lançamento? O vitalício garante acesso permanente.
           </p>
         </div>
 
@@ -186,6 +194,19 @@ function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void
 
         <div className="mt-4">
           <VerifyBox onUnlocked={onUnlocked} />
+        </div>
+
+        <div className="mt-4">
+          <div className="dp-card rounded-3xl p-5">
+            <h3 className="text-sm font-extrabold dp-text-ink">Avisos e ofertas em primeira mão</h3>
+            <p className="mt-0.5 text-xs font-semibold text-[#8a7462] leading-snug">
+              Entre na lista para receber cupons e novidades — e saberem primeiro quando o
+              lançamento volta.
+            </p>
+            <div className="mt-3">
+              <LeadForm source="gate" compact />
+            </div>
+          </div>
         </div>
 
         <div className="mt-4">
@@ -208,6 +229,7 @@ function LockedView({ onUnlocked }: { onUnlocked: (access: StoredAccess) => void
 
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<GateState>("checking");
+  const [launchFree, setLaunchFree] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,6 +237,24 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
       // Um microtask para não setar estado sincronamente no corpo do efeito.
       await Promise.resolve();
       if (cancelled) return;
+      // Lançamento: decisão pelo relógio do servidor; fallback no relógio local.
+      let free = false;
+      try {
+        const res = await fetch("/api/launch", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as { launchFree?: boolean };
+          free = data.launchFree === true;
+        }
+      } catch {
+        free = false;
+      }
+      if (!free) free = isLaunchFreeNow();
+      if (cancelled) return;
+      if (free) {
+        setLaunchFree(true);
+        setState("open");
+        return;
+      }
       const stored = getStoredAccess();
       if (!stored) {
         setState("locked");
@@ -242,7 +282,14 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (state === "open") return <>{children}</>;
+  if (state === "open") {
+    return (
+      <>
+        {children}
+        {launchFree && <LaunchStrip freeUntil={LAUNCH_FREE_UNTIL_ISO} />}
+      </>
+    );
+  }
 
   return (
     <LockedView

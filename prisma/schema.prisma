@@ -41,3 +41,16 @@ model Purchase {
   @@unique([email, plan])
   @@index([email])
 }
+
+// Funil de captação: quem autorizou receber novidades/ofertas (LGPD).
+model Lead {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  whatsapp  String?
+  consent   Boolean  @default(false)
+  source    String   @default("landing") // landing | app | gate | admin
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
