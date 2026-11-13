@@ -139,6 +139,19 @@ async function createSchema(): Promise<void> {
   await db.$executeRawUnsafe(
     `CREATE UNIQUE INDEX IF NOT EXISTS "AuthUser_email_key" ON "AuthUser"("email")`
   );
+  // Task 21: consentimento de marketing (LGPD) na conta + e-mail nas análises.
+  await db.$executeRawUnsafe(
+    `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "marketingConsent" BOOLEAN NOT NULL DEFAULT false`
+  );
+  await db.$executeRawUnsafe(
+    `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "consentAt" TIMESTAMP(3)`
+  );
+  await db.$executeRawUnsafe(
+    `ALTER TABLE "Analysis" ADD COLUMN IF NOT EXISTS "email" TEXT`
+  );
+  await db.$executeRawUnsafe(
+    `CREATE INDEX IF NOT EXISTS "Analysis_email_idx" ON "Analysis"("email")`
+  );
   await db.$executeRawUnsafe(
     `INSERT INTO "Account" ("id", "planLabel", "analysesLeft", "noDeadline", "updatedAt")
      VALUES ('internal', 'Conta interna', 988, true, $1)

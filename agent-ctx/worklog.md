@@ -431,3 +431,50 @@ login do painel) com screenshots scripts/e2e_prod_*.png.
 com o paywall ativo, o comprador passa a ter login como 2ª porta de entrada.
 Commit "feat: autenticação de usuário (/entrar) — contas com scrypt + sessão
 assinada + acesso automático de comprador" + este worklog.
+
+## Task 21 — Cadastro obrigatório, botão Conta e histórico de análises (2026-11-13)
+
+**Pedido:** botão "Entrar/Conta" no topo do DetectorApp + histórico de análises
+vinculado à conta; acesso à plataforma SOMENTE com conta ("sem cadastro não
+acessa"); dados salvos no admin em seção para futuras mensagens de
+promoções/lançamentos. Pedi opinião/sugestões — implementei com os cuidados
+LGPD/conversão descritos no relato.
+
+**O que foi construído:**
+- **AccountGate** em /app (conta → depois paywall): sem sessão mostra tela
+  "Acesse com sua conta" com benefícios + AuthCard compacto. Com sessão,
+  fornece UserSessionContext.
+- **AuthCard** extraído do AuthPage (reuso em /entrar e no gate) com checkbox
+  LGPD NÃO pré-marcado de promoções (marketingConsent + consentAt no AuthUser).
+- **Botão Conta** no Header do DetectorApp: avatar com iniciais + dropdown com
+  nome/e-mail, chip do plano (gratuita/vitalício/passe), **Minhas análises**
+  (últimas 25, com banca, data, trecho do enunciado e gabarito × marcação em
+  verde/vermelho) e Sair (limpa cookie + acesso local + reload).
+- **Histórico**: Analysis ganhou coluna `email`; /api/analyze vincula o e-mail
+  da sessão; GET /api/analyses (401 sem sessão, últimas 25).
+- **Admin — aba Contas**: lista com busca/paginação (nome, e-mail, plano com
+  validade, promoções sim/não, nº análises, criada, último login, excluir —
+  compra preservada), **Exportar CSV** (todos) e **Lista de promoções**
+  (só consentidos — LGPD) com BOM/Excel; KPI "Contas criadas" na visão geral
+  (+novos 7d, quantos aceitam promoções).
+- register route: marketingConsent + rate 30/10min (turmas no mesmo IP).
+- overview route: consultas em SEQUÊNCIA (16 queries em Promise.all estouravam
+  o pool connection_limit=1 — aprendizado do Supabase transaction mode).
+
+**Testes:**
+- E2E local 15/15 (scripts/e2e_user_accounts.sh): bloqueio sem conta, registro
+  pela UI com consent, app abre, painel, histórico vazio → análise SQL →
+  aparece com marcação, logout reativa bloqueio, admin lista/CSV/overview.
+- Regressão Task 20 10/10 (scripts/e2e_user_auth.sh, recriado pós-reciclagem).
+- Produção 10/10 (scripts/prod_verify_accounts.sh): mesmos fluxos no browser
+  real; rotas admin respondem 401 (proteção ativa) — aba Contas validada no
+  E2E local com login real pendente do dono (senha não disponível no sandbox).
+- Correções de ambiente pós-reciclagem: repo re-clonado (commit e0c9e41
+  intacto), envs re-puxadas da Vercel (URLs canônicas Supabase reescritas),
+  ab_lib.sh e helpers pg recriados. Aprendizado: pull da Vercel não baixa envs
+  "Sensitive" — não dá para forjar cookie admin em produção; cookie de teste
+  funciona só contra servidor local com o mesmo .env.
+
+**Estado:** produção oo2v0mxtg no ar; lançamento grátis até 01/01/2027 segue
+com contagem regressiva; paywall ativo exige conta + compra. Commit "feat:
+cadastro obrigatório..." + este worklog.

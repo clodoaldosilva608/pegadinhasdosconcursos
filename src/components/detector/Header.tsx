@@ -2,6 +2,7 @@
 
 import { ScanSearch, Sparkles } from "lucide-react";
 import type { AccountInfo } from "@/lib/types";
+import { AccountButton } from "@/components/detector/AccountButton";
 
 interface HeaderProps {
   account: AccountInfo | null;
@@ -30,17 +31,20 @@ export function Header({ account }: HeaderProps) {
         </div>
       </div>
 
-      <div
-        className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/80 px-2.5 py-1.5 shadow-sm sm:px-3"
-        title={account ? `Conta ${account.planLabel}` : "Conta interna"}
-      >
-        <Sparkles className="h-3.5 w-3.5 text-[#0e9b78]" aria-hidden="true" />
-        <span className="text-xs font-extrabold text-[#0e9b78] tabular-nums sm:text-sm">
-          {account ? account.analysesLeft : "—"}
-        </span>
-        <span className="hidden text-xs font-semibold text-[#6f8a7e] sm:inline sm:text-sm">
-          análises
-        </span>
+      <div className="flex shrink-0 items-center gap-2">
+        <div
+          className="flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/80 px-2.5 py-1.5 shadow-sm sm:px-3"
+          title={account ? `Conta ${account.planLabel}` : "Conta interna"}
+        >
+          <Sparkles className="h-3.5 w-3.5 text-[#0e9b78]" aria-hidden="true" />
+          <span className="text-xs font-extrabold text-[#0e9b78] tabular-nums sm:text-sm">
+            {account ? account.analysesLeft : "—"}
+          </span>
+          <span className="hidden text-xs font-semibold text-[#6f8a7e] sm:inline sm:text-sm">
+            análises
+          </span>
+        </div>
+        <AccountButton />
       </div>
     </header>
   );

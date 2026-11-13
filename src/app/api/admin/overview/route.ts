@@ -15,22 +15,24 @@ export async function GET(req: NextRequest) {
     const db = await dbReady();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 
-    const [leadsTotal, leads7d, approved, refunded, revenue, accounts, analyses, recentLeads, recentPurchases, supportTotal, supportUnread, appUsersTotal, appUsers7d] =
-      await Promise.all([
-        db.lead.count(),
-        db.lead.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-        db.purchase.count({ where: { status: "approved" } }),
-        db.purchase.count({ where: { status: "refunded" } }),
-        db.purchase.aggregate({ _sum: { amountCents: true }, where: { status: "approved" } }),
-        db.account.count(),
-        db.analysis.count(),
-        db.lead.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
-        db.purchase.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
-        db.supportMessage.count(),
-        db.supportMessage.count({ where: { status: "new" } }),
-        db.appUser.count(),
-        db.appUser.count({ where: { firstSeenAt: { gte: sevenDaysAgo } } }),
-      ]);
+    // Sequencial (nada de Promise.all): o pool do Supabase é connection_limit=1
+    // e consultas paralelas estouram o timeout do pool (Task 21 +3 KPIs).
+    const leadsTotal = await db.lead.count();
+    const leads7d = await db.lead.count({ where: { createdAt: { gte: sevenDaysAgo } } });
+    const approved = await db.purchase.count({ where: { status: "approved" } });
+    const refunded = await db.purchase.count({ where: { status: "refunded" } });
+    const revenue = await db.purchase.aggregate({ _sum: { amountCents: true }, where: { status: "approved" } });
+    const accounts = await db.account.count();
+    const analyses = await db.analysis.count();
+    const recentLeads = await db.lead.findMany({ orderBy: { createdAt: "desc" }, take: 5 });
+    const recentPurchases = await db.purchase.findMany({ orderBy: { createdAt: "desc" }, take: 5 });
+    const supportTotal = await db.supportMessage.count();
+    const supportUnread = await db.supportMessage.count({ where: { status: "new" } });
+    const appUsersTotal = await db.appUser.count();
+    const appUsers7d = await db.appUser.count({ where: { firstSeenAt: { gte: sevenDaysAgo } } });
+    const authUsersTotal = await db.authUser.count();
+    const authUsers7d = await db.authUser.count({ where: { createdAt: { gte: sevenDaysAgo } } });
+    const authUsersConsent = await db.authUser.count({ where: { marketingConsent: true } });
 
     // Banco temporário: na Vercel o SQLite vive em /tmp e nasce vazio a cada
     // instância fria — o painel avisa o dono para não achar que "perdeu" dados.
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
       analyses,
       support: { total: supportTotal, unread: supportUnread },
       appUsers: { total: appUsersTotal, last7days: appUsers7d },
+      authUsers: { total: authUsersTotal, last7days: authUsers7d, withConsent: authUsersConsent },
       dbEphemeral,
       recentLeads,
       recentPurchases,

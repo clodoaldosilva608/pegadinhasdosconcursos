@@ -95,11 +95,13 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
+    // Adiado: evita setState síncrono no corpo do efeito (react-hooks).
+    const t = window.setTimeout(() => onSelect(api), 0)
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 
     return () => {
+      window.clearTimeout(t)
       api?.off("select", onSelect)
     }
   }, [api, onSelect])

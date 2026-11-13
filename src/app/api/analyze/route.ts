@@ -7,6 +7,7 @@ import {
   type AnalyzeInput,
 } from "@/lib/analysis";
 import { dbReady } from "@/lib/db";
+import { sessionEmail } from "@/lib/userAuth";
 import { requireAccessBySiteConfig } from "@/lib/gate";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +102,8 @@ export async function POST(req: NextRequest) {
         userMarked: input.userMarked || null,
         optionsJson: JSON.stringify(input.options),
         resultJson: JSON.stringify(result),
+        // Task 21: histórico por conta — e-mail da sessão (quando logado).
+        email: sessionEmail(req),
       },
     });
 

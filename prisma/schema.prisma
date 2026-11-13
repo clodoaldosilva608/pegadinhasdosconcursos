@@ -27,7 +27,10 @@ model Analysis {
   userMarked    String?
   optionsJson   String
   resultJson    String
+  email         String?
   createdAt     DateTime @default(now())
+
+  @@index([email])
 }
 
 // Compras liberadas (Cakto). Uma linha por e-mail + plano.
@@ -112,12 +115,15 @@ model AppUser {
 // Sessão stateless via cookie assinado (mesma técnica do acesso pago/admin).
 // Se o e-mail tem compra aprovada (Purchase), o login emite o MESMO token de
 // acesso pago — a conta restaura o acesso comprado em qualquer aparelho.
+// marketingConsent: opt-in (não pré-marcado) para promoções/lançamentos (LGPD).
 model AuthUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lastLoginAt  DateTime?
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  name             String?
+  marketingConsent Boolean   @default(false)
+  consentAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastLoginAt      DateTime?
 }

@@ -17,7 +17,8 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (rateLimitHit(`auth-register:${clientIp(req)}`, 6, 10 * 60 * 1000)) {
+  // 30/10min: turmas inteiras podem compartilhar o mesmo IP (NAT de escola).
+  if (rateLimitHit(`auth-register:${clientIp(req)}`, 30, 10 * 60 * 1000)) {
     return NextResponse.json(
       { ok: false, message: "Muitas tentativas. Aguarde alguns minutos." },
       { status: 429 }
@@ -25,11 +26,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { name?: string; email?: string; password?: string }
+    | { name?: string; email?: string; password?: string; marketingConsent?: boolean }
     | null;
   const name = String(body?.name ?? "").trim().slice(0, 80) || null;
   const email = normalizeEmail(String(body?.email ?? ""));
   const password = String(body?.password ?? "");
+  // LGPD: opt-in explícito (checkbox não pré-marcado) para promoções/lançamentos.
+  const marketingConsent = body?.marketingConsent === true;
 
   if (!isEmail(email)) {
     return NextResponse.json(
@@ -60,7 +63,13 @@ export async function POST(req: NextRequest) {
       );
     }
     const user = await db.authUser.create({
-      data: { email, name, passwordHash: hashPassword(password), lastLoginAt: new Date() },
+      data: {
+        email,
+        name,
+        passwordHash: hashPassword(password),
+        lastLoginAt: new Date(),
+        ...(marketingConsent ? { marketingConsent: true, consentAt: new Date() } : {}),
+      },
       select: { email: true, name: true },
     });
 

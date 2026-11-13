@@ -24,6 +24,7 @@ import {
   Smartphone,
   Trash2,
   Undo2,
+  UserRound,
   UserRoundCog,
   Users,
 } from "lucide-react";
@@ -84,13 +85,14 @@ interface Overview {
   analyses: number;
   support: { total: number; unread: number };
   appUsers: { total: number; last7days: number };
+  authUsers: { total: number; last7days: number; withConsent: number };
   dbEphemeral: boolean;
   recentLeads: Lead[];
   recentPurchases: Purchase[];
 }
 
 type Session = "loading" | "anon" | "ok";
-type Tab = "overview" | "appusers" | "purchases" | "leads" | "recoveries" | "support" | "site" | "accounts";
+type Tab = "overview" | "appusers" | "authusers" | "purchases" | "leads" | "recoveries" | "support" | "site" | "accounts";
 
 const fmtBRL = (cents: number | null) =>
   cents === null ? "—" : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -272,6 +274,7 @@ function OverviewSection() {
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard icon={Smartphone} label="Usuários do app" value={String(data.appUsers?.total ?? 0)} hint={`+${data.appUsers?.last7days ?? 0} novos nos últimos 7 dias`} />
+        <KpiCard icon={UserRound} label="Contas criadas" value={String(data.authUsers?.total ?? 0)} hint={`+${data.authUsers?.last7days ?? 0} novos · ${data.authUsers?.withConsent ?? 0} aceitam promoções`} />
         <KpiCard icon={Users} label="Leads" value={String(data.leads.total)} hint={`+${data.leads.last7days} nos últimos 7 dias`} />
         <KpiCard icon={BadgeDollarSign} label="Compras aprovadas" value={String(data.purchases.approved)} hint={`${data.purchases.refunded} reembolsadas`} />
         <KpiCard icon={BarChart3} label="Receita (Pix)" value={fmtBRL(data.purchases.revenueCents)} hint="Compras aprovadas via Cakto" />
@@ -1501,11 +1504,230 @@ function EditAppUserDialog({
   );
 }
 
+// ===== contas (cadastro obrigatório /entrar — Task 21) =====
+
+interface AuthUserRow {
+  id: string;
+  email: string;
+  name: string | null;
+  marketingConsent: boolean;
+  consentAt: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  plan: string | null;
+  planExpiresAt: string | null;
+  analysesCount: number;
+}
+
+function AuthUsersSection() {
+  const { toast } = useToast();
+  const [items, setItems] = useState<AuthUserRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<AuthUserRow | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      if (q.trim()) params.set("q", q.trim());
+      const res = await fetch(`/api/admin/authusers?${params.toString()}`, { cache: "no-store" });
+      if (res.status === 401) {
+        window.location.reload();
+        return;
+      }
+      const json = (await res.json()) as Page<AuthUserRow>;
+      if (json.ok) {
+        setItems(json.items);
+        setTotal(json.total);
+        setPages(Math.max(1, Math.ceil(json.total / json.pageSize)));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [page, q]);
+
+  useEffect(() => {
+    // Adiado: evita setState síncrono no corpo do efeito (react-hooks).
+    const t = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(t);
+  }, [load]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#c4ac93]" aria-hidden="true" />
+          <input
+            value={q}
+            onChange={(event) => {
+              setPage(1);
+              setQ(event.target.value);
+            }}
+            placeholder="Buscar por nome ou e-mail…"
+            aria-label="Buscar contas"
+            className={`${inputCls} pl-9`}
+          />
+        </div>
+        <a href="/api/admin/authusers/export" className={btnGhost} title="CSV com todas as contas">
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Exportar CSV
+        </a>
+        <a
+          href="/api/admin/authusers/export?consent=1"
+          className={btnPrimary}
+          title="Somente quem autorizou receber promoções (LGPD)"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Lista de promoções
+        </a>
+      </div>
+
+      <p className="text-xs font-semibold text-[#6f5b47]">
+        Contas criadas em /entrar — acesso à plataforma exige cadastro. Quem tem
+        “promoções = sim” autorizou receber mensagens (LGPD); use a lista de promoções para
+        campanhas de lançamento/cupons. Compras continuam na aba “Usuários &amp; planos”.
+      </p>
+
+      <div className="dp-card overflow-hidden rounded-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#f0e2cf] bg-[#fdf9f2]">
+                {["Nome", "E-mail", "Plano", "Promoções", "Análises", "Criada", "Último login", "Ações"].map((h) => (
+                  <th key={h} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-[#8a7462]">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f0e2cf]">
+              {loading && (
+                <tr>
+                  <td colSpan={8} className="px-3 py-6 text-center">
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#0e9b78]" aria-hidden="true" />
+                  </td>
+                </tr>
+              )}
+              {!loading && items.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-3 py-6 text-center text-xs font-bold text-[#a08a77]">
+                    Nenhuma conta ainda — elas aparecem quando alguém se cadastra em /entrar.
+                  </td>
+                </tr>
+              )}
+              {items.map((user) => (
+                <tr key={user.id} className="hover:bg-[#fdf9f2]">
+                  <td className="px-3 py-2.5 font-extrabold text-[#233028]">{user.name ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-xs font-bold text-[#6f5b47]">{user.email}</td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                        !user.plan || user.plan === "free"
+                          ? "bg-[#f9ddc4] text-[#9a5b23]"
+                          : user.plan === "lifetime"
+                            ? "bg-[#e0f3ed] text-[#0b7d61]"
+                            : "bg-[#fdeeEA] text-[#c2472f]"
+                      }`}
+                      title={user.planExpiresAt ? `Até ${fmtDate(user.planExpiresAt)}` : undefined}
+                    >
+                      {user.plan ? PLAN_LABELS[user.plan] ?? user.plan : "Gratuita"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                        user.marketingConsent
+                          ? "bg-[#e0f3ed] text-[#0b7d61]"
+                          : "bg-[#f3ead9] text-[#8a7462]"
+                      }`}
+                    >
+                      {user.marketingConsent ? "sim" : "não"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs font-black tabular-nums text-[#233028]">
+                    {user.analysesCount}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs font-semibold text-[#6f5b47]">{fmtDate(user.createdAt)}</td>
+                  <td className="px-3 py-2.5 text-xs font-semibold text-[#6f5b47]">
+                    {user.lastLoginAt ? fmtDate(user.lastLoginAt) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(user)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#f2d9c8] bg-white text-[#c2472f] transition hover:bg-[#fdeeEA]"
+                      aria-label={`Excluir conta ${user.email}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-[#f0e2cf] bg-[#fdf9f2] px-3 py-2">
+          <p className="text-[11px] font-bold text-[#8a7462]">
+            {total} conta(s) · página {page} de {pages}
+          </p>
+          <div className="flex gap-1.5">
+            <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className={btnGhost}>
+              Anterior
+            </button>
+            <button type="button" disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className={btnGhost}>
+              Próxima
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="dp-card w-full max-w-sm rounded-3xl p-5">
+            <h3 className="text-base font-extrabold dp-text-ink">Excluir conta?</h3>
+            <p className="mt-1 text-xs font-semibold text-[#6f5b47]">
+              {deleting.email} perde o login/senha e some da lista. A compra (se houver) continua
+              registrada em “Usuários &amp; planos”. A ação é definitiva.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleting(null)} className={btnGhost}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await fetch(`/api/admin/authusers/${deleting.id}`, { method: "DELETE" });
+                  if (res.ok) {
+                    toast({ title: "Conta removida" });
+                    setDeleting(null);
+                    void load();
+                  } else {
+                    toast({ title: "Erro ao excluir", description: "Tente novamente." });
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#e25744] px-4 py-2 text-xs font-extrabold text-white shadow-md transition hover:bg-[#c2472f]"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== shell =====
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof Users }> = [
   { id: "overview", label: "Visão geral", icon: BarChart3 },
   { id: "appusers", label: "Usuários do app", icon: Smartphone },
+  { id: "authusers", label: "Contas", icon: UserRound },
   { id: "purchases", label: "Usuários & planos", icon: BadgeDollarSign },
   { id: "leads", label: "Leads", icon: Users },
   { id: "recoveries", label: "Recuperação", icon: Undo2 },
@@ -1609,6 +1831,7 @@ export function AdminApp() {
         <div className="mt-4">
           {tab === "overview" && <OverviewSection />}
           {tab === "appusers" && <AppUsersSection />}
+          {tab === "authusers" && <AuthUsersSection />}
           {tab === "leads" && <LeadsSection />}
           {tab === "purchases" && <PurchasesSection />}
           {tab === "recoveries" && <RecoveriesSection />}
