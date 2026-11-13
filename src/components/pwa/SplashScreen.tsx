@@ -17,6 +17,11 @@ import { Volume2 } from "lucide-react";
 const GUARD_MS = 4000; // vídeo ainda não carregou/tocou até aqui → sai
 const HARD_CAP_MS = 12500; // teto absoluto (duração da animação + folga)
 const FADE_MS = 350;
+// Marca da abertura (Task 25): cookie de sessão (expira ao fechar o
+// navegador). O page.tsx do /app lê no server e só monta o splash na
+// PRIMEIRA carga da sessão — recarregamentos e o retorno pós-despedida do
+// logout não repetem a animação.
+const SPLASH_COOKIE = "splash=1; path=/";
 
 export function SplashScreen() {
   const [phase, setPhase] = useState<"on" | "fade" | "off">("on");
@@ -54,6 +59,11 @@ export function SplashScreen() {
   }, []);
 
   useEffect(() => {
+    try {
+      document.cookie = SPLASH_COOKIE; // marca esta sessão como "abertura vista"
+    } catch {
+      // cookie bloqueado — o splash repetiria a cada load; aceitável
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const t = window.setTimeout(() => setPhase("off"), 0);
       return () => window.clearTimeout(t);

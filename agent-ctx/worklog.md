@@ -633,3 +633,41 @@ scripts/prod_logout_video.png.
 **Fora do escopo (decisão):** logout técnico do AuthPage (troca de conta) e o
 logout do admin continuam sem vídeo — o pedido era o fluxo do usuário.
 Contas de teste e2e24* seguem no banco.
+
+## Task 25 — Splash só na abertura + vídeo de carregamento (2026-11-13)
+
+**Reporte do dono:** (1) o vídeo de abertura não podia repetir a cada
+carregamento de página; (2) não podia aparecer após a despedida do logout;
+(3) o vídeo enviado (upload "Sem título 2026-11-12 23.54.53.mp4") deve ser o
+vídeo de carregamento a cada load de página.
+
+**Implementado:**
+- Splash 1× por sessão de navegador: `SplashScreen` seta o cookie de sessão
+  `splash=1` (expira ao fechar o navegador) quando toca; o `page.tsx` do /app
+  (agora server, com `cookies()`) só monta o splash se o cookie não existe —
+  decisão no SSR: sem flash de overlay e sem repetir em reloads. O retorno
+  pós-despedida (reload do logout) NÃO repete a abertura ✓ (o cookie segue
+  válido; fecha o navegador → nova abertura).
+- `public/loading.mp4`: reencode do upload (HEVC → H.264 720x1280, 10.07s,
+  **sem áudio** — loading em loop é mudo por padrão e por política de
+  autoplay), 10.75MB → 1.67MB.
+- `LoadingVideo.tsx`: vídeo em loop mudo substituindo o spinner do estado
+  "checking" do `AccountGate` — como todo load do /app passa pelo checking
+  (verificação de sessão), o vídeo aparece a cada carregamento de página,
+  inclusive no HTML inicial (SSR). prefers-reduced-motion mantém o spinner.
+  "Verificando sua conta…" mantido abaixo do vídeo.
+
+**Verificação (`scripts/prod_verify_session.sh`): 14/14** — SSR via curl
+(1ª carga com splash, recarga sem splash, loading.mp4 presente em ambas) +
+ciclo no browser (login → splash 1×; reload sem splash; logout → despedida →
+retorno sem splash e deslogado).
+
+**Lição de teste:** textContent engana (o payload RSC contém os textos —
+"login efetuado" falso-positivo); sinal real de app montado = elemento no DOM
+(`querySelector('button[aria-label="Minha conta"]')`). E o snapshot do
+agent-browser pode trazer atributos antes do ref (`[expanded=false,
+ref=e28]`) — o grep de ref precisa aceitar atributos intermediários.
+
+**Estado:** deploy 5xcn3os1e. Contas de teste e2e25* no banco. Screenshots:
+scripts/prod_loading_video.png (pós-checking sem splash — prova visual) e
+scripts/loading_frame.png (conteúdo do vídeo de carregamento).

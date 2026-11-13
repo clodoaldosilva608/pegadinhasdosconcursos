@@ -8,9 +8,10 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
-import { BellRing, History, Loader2, ScanSearch, Smartphone } from "lucide-react";
+import { BellRing, History, ScanSearch, Smartphone } from "lucide-react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { SupportButton } from "@/components/landing/SupportButton";
+import { LoadingVideo } from "@/components/pwa/LoadingVideo";
 import type { StoredAccess } from "@/lib/accessStore";
 
 export interface UserSessionInfo {
@@ -61,10 +62,8 @@ export function AccountGate({ children }: { children: React.ReactNode }) {
   if (state === "checking") {
     return (
       <main className="dp-app-bg flex min-h-screen items-center justify-center">
-        <div className="flex items-center gap-2.5 text-[#6f5b47]">
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-          <p className="text-sm font-extrabold">Verificando sua conta…</p>
-        </div>
+        {/* Task 25: vídeo de carregamento a cada load da página (loop mudo). */}
+        <LoadingVideo />
       </main>
     );
   }
