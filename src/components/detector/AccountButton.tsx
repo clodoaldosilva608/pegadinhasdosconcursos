@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PLAN_LABELS } from "@/lib/plans";
 import { clearStoredAccess, type StoredAccess } from "@/lib/accessStore";
+import { ExitVideo } from "@/components/pwa/ExitVideo";
 
 interface AnalysisRow {
   id: string;
@@ -46,6 +47,9 @@ export function AccountButton() {
   const [session, setSession] = useState<{ email: string; name: string | null; access: StoredAccess | null } | null>(null);
   const [analyses, setAnalyses] = useState<AnalysisRow[] | null>(null);
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
+  // Vídeo de despedida do logout (Task 24): o clique em "Sair" dispara a
+  // animação com narração; o reload (estado deslogado) acontece no fim dela.
+  const [exitVideo, setExitVideo] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const loadSession = useCallback(async () => {
@@ -101,18 +105,26 @@ export function AccountButton() {
   }, [open, analyses, loadAnalyses]);
 
   const logout = useCallback(async () => {
+    setExitVideo(true); // gesto do clique libera o áudio da despedida
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
-    // Limpa o acesso pago local também: a sessão acabou.
+    // Limpa o acesso pago local também: a sessão acabou. O reload que leva
+    // ao estado deslogado roda no fim do vídeo (ExitVideo onFinish).
     clearStoredAccess();
-    window.location.reload();
   }, []);
 
   const label = session?.name || session?.email || "Conta";
 
   return (
     <div className="relative" ref={rootRef}>
+      {exitVideo && (
+        <ExitVideo
+          onFinish={() => {
+            window.location.reload();
+          }}
+        />
+      )}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

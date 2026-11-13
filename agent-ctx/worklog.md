@@ -604,3 +604,32 @@ Screenshot: scripts/prod_splash_som.png.
 
 **Estado:** deploy lihvnw1xl no ar (commit deste fix segue). Contas de teste
 e2e23* continuam no banco (limpeza exige DATABASE_URL real).
+
+## Task 24 — Vídeo de despedida no logout (2026-11-13)
+
+**Pedido do dono:** o vídeo enviado (`upload/545048378_1794536991481780.mp4`)
+deve tocar quando o usuário faz logout.
+
+**Implementado:**
+- `public/logout.mp4`: reencode do upload (720x1280 9:16, h264 + AAC-LC,
+  faststart) — 6MB → 1.78MB, duração 10.03s, áudio mantido.
+- `src/components/pwa/ExitVideo.tsx`: overlay fullscreen com o vídeo. Como o
+  clique em "Sair da conta" é um gesto do usuário, a reprodução começa COM
+  narração (verificado em prod: sound=on). Se algum navegador bloquear,
+  fallback mudo + botão "Ativar narração" (mesma mecânica do splash — Task
+  23b). Resguardos: 4s sem tocar / teto 13s / onError → segue o logout sem
+  prender. prefers-reduced-motion pula o vídeo.
+- `AccountButton.tsx`: "Sair da conta" agora dispara o vídeo; o fetch de
+  logout e clearStoredAccess() rodam em paralelo, e o reload (estado
+  deslogado) acontece no onFinish do vídeo.
+
+**Lição de teste:** `ab find text` e `ab find first` não alcançam itens do
+dropdown; o caminho confiável é `ab snapshot` → ref → `ab click @eN` (mouse
+CDP real — gera user activation e o som toca). Bateria
+`scripts/prod_verify_logout.sh`: 7/7 — asset 200, login, menu, vídeo com
+narração, overlay sai e app deslogado no fim. Screenshot:
+scripts/prod_logout_video.png.
+
+**Fora do escopo (decisão):** logout técnico do AuthPage (troca de conta) e o
+logout do admin continuam sem vídeo — o pedido era o fluxo do usuário.
+Contas de teste e2e24* seguem no banco.
