@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react";
 import { InstallAndShare } from "@/components/pwa/InstallAndShare";
+import { InstallBanner } from "@/components/landing/InstallBanner";
 import { PlansSection } from "@/components/landing/PlansSection";
 import { RecoveryBanner } from "@/components/landing/RecoveryBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
@@ -338,6 +339,12 @@ export function Landing({
       {/* Banner de recuperação (anti-abandono): quem clicou em pagar e voltou */}
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <RecoveryBanner enabled={on("recovery_banner_enabled")} />
+      </div>
+
+      {/* Banner de instalação do app (PWA — Task 22): 1 clique no Android/
+          desktop, instruções no iPhone. Some após instalar ou dispensar. */}
+      <div className="mx-auto mt-4 max-w-3xl px-4 sm:px-6">
+        <InstallBanner variant="landing" />
       </div>
 
       {/* Plataforma parceira (cross-promo DestravaStudy — Task 18) */}

@@ -478,3 +478,46 @@ LGPD/conversão descritos no relato.
 **Estado:** produção oo2v0mxtg no ar; lançamento grátis até 01/01/2027 segue
 com contagem regressiva; paywall ativo exige conta + compra. Commit "feat:
 cadastro obrigatório..." + este worklog.
+
+## Task 22 — Banner de instalação do app (PWA) na landing e no dashboard (2026-11-13)
+
+**Pedido:** banner com botão para instalar a aplicação na dashboard do usuário
+e na landing page. O usuário também enviou um token GitHub (push do commit
+1581620 pendente feito: e0c9e41..1581620) e dois tokens Vercel — o novo é
+inválido ("token is not valid"); o antigo segue ativo e foi usado no deploy.
+
+**O que já existia (não refeito):** manifest.webmanifest (ícones 192/512 +
+maskable), sw.js (cache shell/offline), registro no layout, InstallAndShare no
+hero da landing (botão permanente) — infra PWA completa da Task anterior.
+
+**O que foi construído:**
+- **InstallBanner** (src/components/landing/InstallBanner.tsx), client,
+  variantes landing/app com copy própria:
+  - Android/desktop: captura beforeinstallprompt e instala com 1 clique
+    (prompt()/userChoice); some no appinstalled.
+  - iOS: instruções do Safari (Compartilhar → Adicionar à Tela de Início).
+  - Escondido se display-mode: standalone (já instalado) ou dispensado por
+    14 dias (localStorage dp-install-dismissed-at).
+  - BUG corrigido no próprio desenvolvimento: a dispensa precisa prevalecer
+    sobre o evento — o Chrome re-dispara beforeinstallprompt a cada navegação
+    e, sem a checagem shouldHide() dentro do listener, o banner reaparecia
+    mesmo depois do X.
+- Posição: landing entre RecoveryBanner e "O que é"; /app logo abaixo do
+  Header (acima das tabs). Convive com o InstallAndShare do hero (2 CTAs de
+  instalação com eventos independentes — ambos funcionam).
+
+**Testes:**
+- E2E local 12/12 (scripts/e2e_install_banner.sh): manifest/sw/ícones 200;
+  banner aparece com o evento e instala via prompt sintético; some ao aceitar;
+  dispensa persiste após reload (mesmo com BIP real do Chrome — o headless
+  dispara o evento real, comprovado no run); /app com conta e copy própria.
+- Produção 9/9 (scripts/prod_verify_banner.sh, deploy a4cozhcoq): mesma
+  bateria no browser real. Lição: a landing é pesada — a hidratação leva
+  vários segundos após networkidle; os scripts re-dispacham o evento até o
+  listener registrar.
+- Screenshots validados visualmente: landing (banner acima do banner parceiro)
+  e dashboard (banner abaixo do Header). Detalhe: conta interna em 987
+  análises — 1 análise usada por usuário real desde ontem (uso real no ar!).
+
+**Estado:** produção atualizada; próximos passos sugeridos: login social
+(Google) e página "minhas análises" completa com reabertura do resultado.

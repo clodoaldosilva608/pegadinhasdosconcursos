@@ -17,6 +17,7 @@ import { DistractorsTab } from "@/components/detector/DistractorsTab";
 import { VocabularyTab } from "@/components/detector/VocabularyTab";
 import { getUserAi } from "@/lib/userAiStore";
 import { authHeaders, handleAccessDenied } from "@/lib/accessStore";
+import { InstallBanner } from "@/components/landing/InstallBanner";
 import type {
   AccountInfo,
   AnalysisResult,
@@ -181,6 +182,11 @@ export function DetectorApp() {
     <main className="dp-app-bg min-h-screen w-full">
       <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 pb-10 pt-5 sm:px-6">
         <Header account={account} />
+
+        {/* Banner de instalação do app (PWA — Task 22): some após instalar ou dispensar */}
+        <div className="mt-4">
+          <InstallBanner variant="app" />
+        </div>
 
         {/* Tabs */}
         {showHeaderTabs && (
