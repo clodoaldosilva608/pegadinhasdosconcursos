@@ -574,3 +574,33 @@ as envs reais vivem) e as contas de teste e2e23* não foram limpas do banco
 **Estado:** produção atualizada. Pendências menores: contas de teste
 e2e23* no banco (limpar com DATABASE_URL real); comportamento do share com
 vídeo depende do suporte do aparelho (fallback texto+link+arte já cobre).
+
+## Task 23b — Narração no splash (2026-11-13)
+
+**Reporte do dono:** o áudio da fala da personagem na abertura não funcionava.
+**Causa:** política de autoplay dos navegadores — som exige gesto do usuário
+(o `<video>` tinha `muted` fixo, então o autoplay sempre rodava silencioso).
+
+**Correção (SplashScreen v2):**
+- O splash agora **tenta tocar com narração** primeiro (`play()` sem muted).
+  Aparelhos com autoplay com som permitido (engajamento alto) já ouvem a fala
+  sozinho.
+- Se o navegador bloquear (padrão), o vídeo segue mudo e aparece o botão
+  **"Ativar narração"** (pill branco, borda dourada, ícone de som, acima da
+  tagline do vídeo). O toque reinicia a animação do começo (a fala é ouvida
+  por inteiro) e reagend o teto de segurança (12.5s).
+- `aria-hidden` só quando não há botão (o botão fica acessível); resguardos
+  de 4s/12.5s e prefers-reduced-motion mantidos; `data-sound` = muted/prompt/on.
+
+**Lição de teste (importante):** polling contínuo de `eval` via CLI interferia
+na reprodução/fechamento do vídeo no headless e `.click()` programático NÃO
+gera user activation (autoplay com som continua bloqueado). O script
+(prod_verify_splash.sh) agora monitora a linha do tempo com evals únicos
+in-browser (snap a cada 300ms) e clica via mouse CDP (`find first ... click`),
+que gera activation. Com isso a bateria ficou 12/12: aparição, botão visível,
+áudio ativado no toque, replay do começo (cur≈0.3s) e fechamento sozinho em
+10.5s após o clique (= duração da animação) + assets/OG/banner regressão.
+Screenshot: scripts/prod_splash_som.png.
+
+**Estado:** deploy lihvnw1xl no ar (commit deste fix segue). Contas de teste
+e2e23* continuam no banco (limpeza exige DATABASE_URL real).
