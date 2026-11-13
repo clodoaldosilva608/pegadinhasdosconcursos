@@ -10,9 +10,14 @@ export function appUrl(): string {
   return "https://pegadinhasdosconcursos.vercel.app";
 }
 
-/** Banner social (1200×630) que aparece como prévia do link no WhatsApp/Telegram. */
+/** Banner social (1200×630) com o visual da nova animação — prévia do link no WhatsApp/Telegram. */
 export function bannerUrl(): string {
-  return `${appUrl()}/banner-share.png`;
+  return `${appUrl()}/banner-share-v2.png`;
+}
+
+/** A animação de apresentação da marca (vídeo 9:16, ~10s, com áudio). */
+export function animationUrl(): string {
+  return `${appUrl()}/splash.mp4`;
 }
 
 export function shareDescription(): string {
@@ -36,8 +41,45 @@ export function telegramLink(): string {
   return `https://t.me/share/url?url=${encodeURIComponent(appUrl())}&text=${encodeURIComponent(text)}`;
 }
 
+const MAX_SHARE_VIDEO_BYTES = 10 * 1024 * 1024; // teto de segurança (WhatsApp aceita ~16MB)
+
 export async function nativeShare(): Promise<"shared" | "unsupported" | "cancelled"> {
   if (typeof navigator === "undefined" || !navigator.share) return "unsupported";
+  // 1ª tentativa: a animação em vídeo + descrição + link (Android/iOS modernos).
+  // O teste de suporte usa um File vazio — só o tipo importa para o canShare,
+  // então desktop/headless não baixa o vídeo à toa.
+  try {
+    const probe = new File([new Blob()], "probe.mp4", { type: "video/mp4" });
+    if (
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [probe] } as unknown as ShareData)
+    ) {
+      const response = await fetch(animationUrl());
+      const length = Number(response.headers.get("content-length") ?? "0");
+      if (response.ok && length > 0 && length <= MAX_SHARE_VIDEO_BYTES) {
+        const blob = await response.blob();
+        const file = new File([blob], "pegadinhas-dos-concursos.mp4", { type: "video/mp4" });
+        const data: FileShareData = {
+          files: [file],
+          title: SHARE_TITLE,
+          text: shareText(),
+          url: appUrl(),
+        };
+        if (navigator.canShare(data as unknown as ShareData)) {
+          try {
+            await navigator.share(data as unknown as ShareData);
+            return "shared";
+          } catch (error) {
+            if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+          }
+        }
+      }
+    }
+  } catch {
+    // vídeo indisponível — segue com o convite de texto
+  }
+  // 2ª tentativa: convite de texto; no WhatsApp/Telegram a prévia do link
+  // chega com a arte da animação (banner-share-v2).
   try {
     await navigator.share({ title: SHARE_TITLE, text: shareText(), url: appUrl() });
     return "shared";

@@ -39,10 +39,10 @@ export const metadata: Metadata = {
       "Mande a questão, confirme o que marcou e veja a pegadinha que a banca preparou: o distrator, o operador semântico e o porquê de cada letra (Método 3C).",
     images: [
       {
-        url: "/banner-share.png",
+        url: "/banner-share-v2.png",
         width: 1200,
         height: 630,
-        alt: "Detector de Pegadinhas — análise da questão com o Método 3C",
+        alt: "Detetive com lupa — nova animação de apresentação do Detector de Pegadinhas",
       },
     ],
   },
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: "Detector de Pegadinhas · Con-curso",
     description:
       "Mande a questão, confirme o que marcou e veja a pegadinha que a banca preparou — pelo Método 3C.",
-    images: ["/banner-share.png"],
+    images: ["/banner-share-v2.png"],
   },
 };
 

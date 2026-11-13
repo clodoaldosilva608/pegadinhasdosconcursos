@@ -74,8 +74,8 @@ export function ShareCard({ compact = false }: { compact?: boolean }) {
         </p>
         <div className="mt-2 overflow-hidden rounded-xl border border-[#f0e2cf] bg-white shadow-sm">
           <Image
-            src="/banner-share.png"
-            alt="Banner do Detector de Pegadinhas com exemplo de análise da banca"
+            src="/banner-share-v2.png"
+            alt="Detetive com lupa — animação de apresentação do Detector de Pegadinhas"
             width={1200}
             height={630}
             className="h-auto w-full"
@@ -90,7 +90,7 @@ export function ShareCard({ compact = false }: { compact?: boolean }) {
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5 px-1">
           {[
-            "Banner anexado",
+            "Animação anexada",
             "Descrição pronta",
             "Link incluído",
           ].map((item) => (
@@ -159,7 +159,7 @@ export function ShareCard({ compact = false }: { compact?: boolean }) {
             : "Quero enviar só o banner (imagem)"}
       </button>
       <p className="mt-1.5 text-center text-[10px] font-semibold text-[#b3997f]">
-        No WhatsApp e no Telegram, o banner aparece sozinho como prévia do link.
+        No WhatsApp e no Telegram, o convite chega com a arte da animação como prévia do link.
       </p>
     </section>
   );

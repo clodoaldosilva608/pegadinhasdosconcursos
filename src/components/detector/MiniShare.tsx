@@ -107,10 +107,10 @@ export function MiniShare() {
         className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#0e9b78]/40 bg-white/60 px-3 py-2 text-[11px] font-extrabold text-[#0b7d61] transition hover:bg-[#e0f3ed]/50"
       >
         {bannerState === "sent"
-          ? "Banner enviado!"
+          ? "Animação enviada!"
           : bannerState === "saved"
-            ? "Banner salvo em downloads"
-            : "Enviar só o banner (imagem)"}
+            ? "Arte salva em downloads"
+            : "Enviar a arte da animação (imagem)"}
       </button>
     </section>
   );

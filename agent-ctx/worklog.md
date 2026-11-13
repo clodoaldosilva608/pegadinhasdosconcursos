@@ -521,3 +521,56 @@ hero da landing (botão permanente) — infra PWA completa da Task anterior.
 
 **Estado:** produção atualizada; próximos passos sugeridos: login social
 (Google) e página "minhas análises" completa com reabertura do resultado.
+
+## Task 23 — Splash com a animação da marca + compartilhamento com o vídeo (2026-11-13)
+
+**Pedido:** a nova animação (vídeo enviado pelo dono, 720×1280, 10.03s, com
+áudio — detetive com lupa, logo dourado, tagline) passa a ser (1) a página de
+carregamento ao iniciar a aplicação, durando o tempo da animação; (2) vai
+junto com descrição e link no compartilhamento (WhatsApp/Telegram/redes).
+
+**Recuperação pós-reciclagem do sandbox:** o diretório do projeto sumiu no
+meio da tarefa (sandbox novo). Re-clone do GitHub (commit 8bfdb0c) + envs de
+produção do Vercel. Descoberta: o `vercel env pull` gravou `[SENSITIVE]`
+literal no lugar dos segredos (máscara da sandbox) e a API do Vercel não
+devolve valores sensíveis para o token — o app local ficou sem DATABASE_URL.
+Consequências: E2E de fluxo (login→splash) passou a rodar EM PRODUÇÃO (onde
+as envs reais vivem) e as contas de teste e2e23* não foram limpas do banco
+(inofensivas, e-mails example.com). O cleanup precisa da DATABASE_URL real.
+
+**O que foi construído:**
+- **public/splash.mp4** — re-encode H.264 CRF 27 + AAC 96k, **1.7MB** (de
+  5.1MB), faststart (moov na frente). Áudio mantido (compartilhamento leva
+  narração); o splash web roda muted (autoplay).
+- **SplashScreen** (src/components/pwa/SplashScreen.tsx): overlay full-screen
+  com o vídeo (object-cover mobile / object-contain desktop com fundo
+  #081224), fecha no `ended` (duração = da animação) + fade 350ms.
+  Resguardos: guarda 4s se o vídeo não começar a tocar; teto 12.5s;
+  prefers-reduced-motion pula direto. **Posição: src/app/app/page.tsx, FORA
+  dos gates** — monta 1× por load, roda já durante a validação de acesso e
+  revalidações do AccountGate não reiniciam a animação (versão dentro do
+  DetectorApp ficava presa em remounts do gate durante polling do teste).
+- **Share com a animação** (src/lib/share.ts): `nativeShare()` agora tenta
+  1º o vídeo + descrição + link via Web Share API (probe `canShare({files})`
+  com File vazio — desktop não baixa o mp4 à toa; teto 10MB), caindo para o
+  convite de texto. ShareCard/MiniShare ganham a nova arte e textos
+  ("Animação anexada"; botão "Enviar a arte da animação").
+- **public/banner-share-v2.png** (1200×630, scripts/gen_og_v2.py): degradê
+  azul da marca + logo recortado do frame + detetive + tagline + domínio.
+  og:image/twitter:image e a prévia do ShareCard apontam para a v2 (nome
+  novo para furar o cache de OG do WhatsApp/Facebook).
+
+**Testes:**
+- Produção 7/7 (scripts/prod_verify_splash.sh, deploy ojw37h6jk): assets 200
+  (video/mp4, image/png), og:image v2 no ar, splash aparece ao iniciar (até
+  sem login — está fora dos gates), app usável por trás, banner Task 22
+  intacto. Codec h264 "probably" no headless.
+- **Instrumentação direta (prova da duração):** vídeo tocando em tempo real
+  (cur=3.4, paused=false) → `pause@7s, ended@7s` (3.4+7≈10.4s = duração exata
+  da animação) → overlay removido e permanece removido.
+- Lição de teste: polling contínuo de `eval` no headless interferia no
+  fechamento do vídeo durante o script; amostragem espaçada + nota no check.
+
+**Estado:** produção atualizada. Pendências menores: contas de teste
+e2e23* no banco (limpar com DATABASE_URL real); comportamento do share com
+vídeo depende do suporte do aparelho (fallback texto+link+arte já cobre).
