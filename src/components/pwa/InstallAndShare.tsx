@@ -75,7 +75,7 @@ export function InstallAndShare() {
       <div className="flex flex-col items-start gap-3">
         <Link
           href="/app"
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-900/25 transition hover:from-[#0fa87f] hover:to-[#0b7d61]"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FFD54A] to-[#F5B301] px-6 py-3.5 text-sm font-extrabold text-[#07152F] shadow-lg shadow-amber-900/25 transition hover:from-[#FFE27A] hover:to-[#FFC61A]"
         >
           <Smartphone className="h-4.5 w-4.5" aria-hidden="true" />
           Abrir a plataforma
@@ -91,20 +91,20 @@ export function InstallAndShare() {
           <button
             type="button"
             onClick={handleInstall}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-900/25 transition hover:from-[#0fa87f] hover:to-[#0b7d61]"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FFD54A] to-[#F5B301] px-6 py-3.5 text-sm font-extrabold text-[#07152F] shadow-lg shadow-amber-900/25 transition hover:from-[#FFE27A] hover:to-[#FFC61A]"
           >
             <Download className="h-4.5 w-4.5" aria-hidden="true" />
             Instalar o app grátis
           </button>
         ) : isIOS ? (
-          <span className="inline-flex items-center justify-center gap-2 rounded-full bg-[#233028] px-6 py-3.5 text-sm font-extrabold text-white shadow-lg">
+          <span className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0A1840] px-6 py-3.5 text-sm font-extrabold text-white shadow-lg">
             <Download className="h-4.5 w-4.5" aria-hidden="true" />
             No Safari: Compartilhar → Adicionar à Tela de Início
           </span>
         ) : (
           <Link
             href="/app"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-900/25 transition hover:from-[#0fa87f] hover:to-[#0b7d61]"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FFD54A] to-[#F5B301] px-6 py-3.5 text-sm font-extrabold text-[#07152F] shadow-lg shadow-amber-900/25 transition hover:from-[#FFE27A] hover:to-[#FFC61A]"
           >
             <Smartphone className="h-4.5 w-4.5" aria-hidden="true" />
             Abrir a plataforma
@@ -112,7 +112,7 @@ export function InstallAndShare() {
         )}
         <Link
           href="#planos"
-          className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#0e9b78]/35 bg-white/70 px-6 py-3 text-sm font-extrabold text-[#0b7d61] transition hover:bg-white"
+          className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#F5B301]/45 bg-white/70 px-6 py-3 text-sm font-extrabold text-[#07152F] transition hover:bg-white"
         >
           Ver planos
         </Link>

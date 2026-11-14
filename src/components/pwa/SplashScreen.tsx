@@ -118,7 +118,7 @@ export function SplashScreen() {
       data-testid="splash-screen"
       data-phase={phase}
       data-sound={sound}
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-[#081224] transition-opacity ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-[#050D20] transition-opacity ${
         phase === "fade" ? "opacity-0" : "opacity-100"
       }`}
       style={{ transitionDuration: `${FADE_MS}ms` }}

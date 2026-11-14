@@ -49,7 +49,7 @@ function shouldHide(): boolean {
 
 const COPY = {
   landing: {
-    title: "Instale o Detector de Pegadinhas no seu celular",
+    title: "Instale o Pegadinhas dos Concursos no seu celular",
     subtitle: "Acesso direto pela tela de início, em tela cheia e sem loja de apps.",
   },
   app: {
@@ -139,8 +139,8 @@ export function InstallBanner({ variant = "landing" }: { variant?: "landing" | "
 
       <div className="flex items-start gap-3">
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-md"
-          style={{ background: "linear-gradient(135deg, #14b98d 0%, #0b7d61 100%)" }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[#07152F] shadow-md"
+          style={{ background: "linear-gradient(135deg, #FFD54A 0%, #F5B301 100%)" }}
           aria-hidden="true"
         >
           <Smartphone className="h-5 w-5" strokeWidth={2.2} />
@@ -155,7 +155,7 @@ export function InstallBanner({ variant = "landing" }: { variant?: "landing" | "
               <button
                 type="button"
                 onClick={() => void install()}
-                className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#17b98c] to-[#0e9b78] px-4 py-2.5 text-sm font-extrabold text-white shadow-md shadow-emerald-900/20 transition hover:from-[#0fa87f] hover:to-[#0b7d61]"
+                className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#FFD54A] to-[#F5B301] px-4 py-2.5 text-sm font-extrabold text-[#07152F] shadow-md shadow-amber-900/20 transition hover:from-[#FFE27A] hover:to-[#FFC61A]"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 Instalar app

@@ -1,17 +1,18 @@
 {
   "id": "/",
-  "name": "Detector de Pegadinhas · Con-curso",
+  "name": "Pegadinhas dos Concursos",
   "short_name": "Pegadinhas",
-  "description": "Mande a questão, confirme o que marcou e entenda a pegadinha da banca com o Método 3C.",
+  "description": "A pegadinha que a banca preparou, decifrada antes da prova.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "/app",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fdf3e6",
-  "theme_color": "#0e9b78",
+  "theme_color": "#07152F",
+  "background_color": "#050D20",
   "categories": ["education"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -36,6 +37,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

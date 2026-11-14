@@ -13,9 +13,9 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pegadinhasdosconcu
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Detector de Pegadinhas · Con-curso",
+  title: "Pegadinhas dos Concursos | Detector Inteligente",
   description:
-    "A ferramenta que te explica os distratores das questões e aprofunda o conteúdo pelo gabarito. Mande a questão, confirme o que marcou e entenda a pegadinha.",
+    "Descubra as pegadinhas das bancas examinadoras, identifique distratores e aprenda com o Método 3C: Conteúdo, Cauda e Contexto.",
   keywords: ["concursos", "distratores", "pegadinhas", "questões", "estudos", "Con-curso"],
   manifest: "/manifest.webmanifest",
   applicationName: "Pegadinhas",
@@ -28,37 +28,39 @@ export const metadata: Metadata = {
     telephone: false,
   },
   // Cartão do convite: quando o link é compartilhado (WhatsApp, Telegram,
-  // redes sociais), ele já chega com banner, descrição e o endereço do app.
+  // redes sociais), ele já chega com a identidade oficial da marca, a
+  // descrição e o endereço do app.
   openGraph: {
     type: "website",
     locale: "pt_BR",
     url: "/",
-    siteName: "Detector de Pegadinhas · Con-curso",
-    title: "Detector de Pegadinhas · Con-curso",
+    siteName: "Pegadinhas dos Concursos",
+    title: "Pegadinhas dos Concursos | Detector Inteligente",
     description:
-      "Mande a questão, confirme o que marcou e veja a pegadinha que a banca preparou: o distrator, o operador semântico e o porquê de cada letra (Método 3C).",
+      "Descubra as pegadinhas das bancas examinadoras, identifique distratores e aprenda com o Método 3C: Conteúdo, Cauda e Contexto.",
     images: [
       {
-        url: "/banner-share-v2.png",
+        url: "/banner-share-v3.png",
         width: 1200,
         height: 630,
-        alt: "Detetive com lupa — nova animação de apresentação do Detector de Pegadinhas",
+        alt: "Pegadinhas dos Concursos — A pegadinha que a banca preparou, decifrada antes da prova!",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Detector de Pegadinhas · Con-curso",
+    title: "Pegadinhas dos Concursos | Detector Inteligente",
     description:
-      "Mande a questão, confirme o que marcou e veja a pegadinha que a banca preparou — pelo Método 3C.",
-    images: ["/banner-share-v2.png"],
+      "Descubra as pegadinhas das bancas examinadoras, identifique distratores e aprenda com o Método 3C: Conteúdo, Cauda e Contexto.",
+    images: ["/banner-share-v3.png"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0e9b78",
+  themeColor: "#07152F",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { InstallAndShare } from "@/components/pwa/InstallAndShare";
 import { InstallBanner } from "@/components/landing/InstallBanner";
+import { BrandSection } from "@/components/brand/BrandSection";
 import { PlansSection } from "@/components/landing/PlansSection";
 import { RecoveryBanner } from "@/components/landing/RecoveryBanner";
 import { ShareCard } from "@/components/pwa/ShareCard";
@@ -335,6 +336,10 @@ export function Landing({
           </div>
         </div>
       </section>
+
+      {/* Identidade visual oficial da marca: arte integral, object-fit contain,
+          sem distorção nem corte. Entrada suave quando entra na viewport. */}
+      <BrandSection />
 
       {/* Banner de recuperação (anti-abandono): quem clicou em pagar e voltou */}
       <div className="mx-auto max-w-3xl px-4 sm:px-6">

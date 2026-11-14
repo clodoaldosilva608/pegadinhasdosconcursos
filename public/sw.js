@@ -1,18 +1,21 @@
-// Service Worker do Detector de Pegadinhas (PWA instalável).
+// Service Worker do Pegadinhas dos Concursos (PWA instalável).
 // Estratégias:
 //  - /api/*            → sempre rede (nunca cacheia respostas dinâmicas de IA)
-//  - navegação (HTML)  → rede primeiro; sem rede, cai para o shell "/" cacheado
+//  - navegação (HTML)  → rede primeiro; sem rede, shell "/" cacheado e,
+//                        na falta deste, a tela /offline.html
 //  - estáticos         → cache-first com preenchimento em runtime
-//                           (/_next/static, /icons, manifest, imagens otimizadas)
-const VERSION = "dp-pwa-v1";
+//                        (/_next/static, /icons, /brand, manifest, ícones)
+const VERSION = "pc-v1.0.0";
 const PRECACHE = `${VERSION}-precache`;
 const RUNTIME = `${VERSION}-runtime`;
 
 const PRECACHE_URLS = [
   "/",
+  "/offline.html",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-maskable-192.png",
+  "/brand/logo-pegadinhas.webp",
 ];
 
 self.addEventListener("install", (event) => {
@@ -63,7 +66,8 @@ self.addEventListener("fetch", (event) => {
         .catch(() =>
           caches
             .match("/")
-            .then((cached) => cached || Response.error())
+            .then((cached) => cached || caches.match("/offline.html"))
+            .then((fallback) => fallback || Response.error())
         )
     );
     return;
@@ -74,9 +78,12 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/_next/image") ||
     url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/brand/") ||
     url.pathname === "/manifest.webmanifest" ||
+    url.pathname === "/offline.html" ||
     url.pathname === "/icon.png" ||
-    url.pathname === "/apple-icon.png";
+    url.pathname === "/apple-icon.png" ||
+    url.pathname === "/apple-touch-icon.png";
 
   if (cacheable) {
     event.respondWith(
